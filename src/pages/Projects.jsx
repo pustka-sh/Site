@@ -1,70 +1,46 @@
-import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import Topology from '../components/Topology.jsx';
-import TiltCard from '../components/TiltCard.jsx';
 import Reveal, { WordReveal } from '../components/Reveal.jsx';
 import External from '../components/External.jsx';
-import ScrambleText from '../components/ScrambleText.jsx';
-import { ORG, SOURCE } from '../data/site.js';
+import { ProjectsSection } from '../components/ProjectsSection.jsx';
+import { useRelayContent } from '../lib/useRelayContent.js';
+import { SOURCE } from '../data/site.js';
 
-function ProjectRegister() {
+const statusLabel = { working: 'WORKING', partial: 'IN PART', planned: 'NOT STARTED' };
+
+function Roadmap() {
+  const data = useRelayContent();
+  if (!data?.phases?.length) return null;
+  const done = data.phases.filter((p) => p.status === 'working').length;
   return (
-    <Reveal>
-      <TiltCard className="project-register" max={3}>
-        <div className="project-number">/01</div>
-        <div className="project-copy">
-          <p className="micro"><span className="live-dot" aria-hidden="true" /> NETWORK INFRASTRUCTURE · IN THE OPEN</p>
-          <h3>Relay<span style={{ color: 'var(--red)' }}>.</span></h3>
-          <p>A Minecraft server proxy, built in Java. Connect players, route between backends, and keep your network in view.</p>
-          <div className="project-tags">
-            {['Java', 'JDK 21+', 'Paper backends', 'MC 1.20.2–1.21.8'].map((t, i) => (
-              <motion.span key={t} initial={{ opacity: 0, y: 6 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 + i * 0.06 }}>{t}</motion.span>
-            ))}
-          </div>
-          <div className="project-links">
-            <Link to="/docs/relay" className="arrow-link">Read the docs <span>→</span></Link>
-            <Link to="/api" className="arrow-link">API reference <span>→</span></Link>
-            <External href={SOURCE}>Source ↗</External>
-          </div>
+    <section className="roadmap" aria-label="Relay roadmap">
+      <div className="section-heading">
+        <div>
+          <p className="section-label">RELAY / ROADMAP</p>
+          <WordReveal as="h2" text="Where Relay is." />
         </div>
-        <Topology />
-      </TiltCard>
-    </Reveal>
-  );
-}
-
-function Upcoming() {
-  return (
-    <Reveal className="project-register project-next" delay={0.1}>
-      <div className="project-number">/02</div>
-      <div className="project-copy">
-        <p className="micro">NEXT SLOT</p>
-        <h3 className="ghost-title"><ScrambleText text="∅ unannounced" /></h3>
-        <p>The register has room for more. When something new is ready to share, it lands here — and on GitHub first.</p>
-        <div className="project-links"><External href={ORG}>Watch the organization ↗</External></div>
+        <External href={`${SOURCE}#status`} className="text-link">Status in the README ↗</External>
       </div>
-      <div className="next-visual" aria-hidden="true">
-        {Array.from({ length: 24 }, (_, i) => <i key={i} style={{ animationDelay: `${(i * 0.37) % 3}s` }} />)}
+      <div className="roadmap-track">
+        <motion.span
+          className="roadmap-fill"
+          initial={{ scaleX: 0 }}
+          whileInView={{ scaleX: done / data.phases.length }}
+          viewport={{ once: true }}
+          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+          aria-hidden="true"
+        />
       </div>
-    </Reveal>
-  );
-}
-
-export function ProjectsSection({ showHeading = true }) {
-  return (
-    <section className="projects-section" id="projects">
-      {showHeading && (
-        <div className="section-heading">
-          <div>
-            <p className="section-label">01 / THE WORK</p>
-            <WordReveal text="Out of the void." />
-          </div>
-          <External href={ORG} className="text-link">All repositories ↗</External>
-        </div>
-      )}
-      <ProjectRegister />
-      <Upcoming />
-      <p className="under-register">Built in the open. Follow the source as it takes shape.</p>
+      <ol className="roadmap-phases">
+        {data.phases.map((p, i) => (
+          <Reveal as="li" key={p.n} delay={i * 0.08} className={`phase phase-${p.status}`}>
+            <span className="phase-n">{String(p.n).padStart(2, '0')}</span>
+            <h3>{p.name}</h3>
+            <span className={`badge badge-${p.status}`}>{statusLabel[p.status]}</span>
+            <p className="phase-scope">{p.scope}</p>
+            <p className="phase-state">{p.state}</p>
+          </Reveal>
+        ))}
+      </ol>
     </section>
   );
 }
@@ -78,6 +54,7 @@ export default function Projects() {
         <Reveal as="p" delay={0.2}>A workshop for Minecraft mods, loaders, proxies, and tools. Start with the software taking shape in the open.</Reveal>
       </header>
       <ProjectsSection showHeading={false} />
+      <Roadmap />
     </div>
   );
 }

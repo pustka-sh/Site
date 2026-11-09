@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useToast } from './Toast.jsx';
+import { highlight } from '../lib/highlight.js';
 
-export default function CodeBlock({ code, label = 'terminal' }) {
+export default function CodeBlock({ code, label = 'terminal', lang = label === 'terminal' ? 'bash' : undefined, download }) {
+  const html = useMemo(() => highlight(code, lang), [code, lang]);
   const [copied, setCopied] = useState(false);
   const toast = useToast();
   const copy = async () => {
@@ -16,9 +18,24 @@ export default function CodeBlock({ code, label = 'terminal' }) {
     }
   };
   return (
-    <div className="code-block">
+    <div className="code-block" data-lang={lang || label}>
       <div className="code-label">
         <span><i className="dots" aria-hidden="true"><b /><b /><b /></i>{label}</span>
+        {download && (
+          <button
+            className="copy-button download-button"
+            type="button"
+            onClick={() => {
+              const url = URL.createObjectURL(new Blob([code], { type: 'text/plain' }));
+              const a = Object.assign(document.createElement('a'), { href: url, download });
+              a.click();
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+              toast(`Downloaded ${download}.`);
+            }}
+          >
+            Download
+          </button>
+        )}
         <button className="copy-button" type="button" onClick={copy} aria-label={copied ? 'Copied' : `Copy ${label}`}>
           <AnimatePresence mode="wait" initial={false}>
             <motion.span key={copied ? 'y' : 'n'} initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -8, opacity: 0 }} transition={{ duration: 0.15 }}>
@@ -27,7 +44,7 @@ export default function CodeBlock({ code, label = 'terminal' }) {
           </AnimatePresence>
         </button>
       </div>
-      <pre><code>{code}</code></pre>
+      <pre><code className="hljs" dangerouslySetInnerHTML={{ __html: html }} /></pre>
     </div>
   );
 }

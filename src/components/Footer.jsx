@@ -17,6 +17,9 @@ export default function Footer() {
             <Link to="/projects">Projects</Link>
             <Link to="/docs/relay">Documentation</Link>
             <Link to="/api">API reference</Link>
+            <Link to="/docs/configuration">Config builder</Link>
+            <Link to="/changelog">Changelog</Link>
+            <Link to="/help">Help</Link>
           </div>
           <div className="footer-links">
             <span className="footer-head">ELSEWHERE</span>

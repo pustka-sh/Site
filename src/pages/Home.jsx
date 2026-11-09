@@ -10,7 +10,7 @@ import CountUp from '../components/CountUp.jsx';
 import Terminal from '../components/Terminal.jsx';
 import RingLogo from '../components/RingLogo.jsx';
 import External from '../components/External.jsx';
-import { ProjectsSection } from './Projects.jsx';
+import { ProjectsSection } from '../components/ProjectsSection.jsx';
 import { ORG } from '../data/site.js';
 
 const ease = [0.22, 1, 0.36, 1];

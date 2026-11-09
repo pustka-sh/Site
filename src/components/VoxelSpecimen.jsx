@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { useFinePointer, usePrefersReducedMotion } from '../hooks/useMedia.js';
 
@@ -52,7 +52,12 @@ function buildBlocks() {
     const [cx, cy] = project(x + 0.5, y + 0.5, z + 1);
     // Exploded view: push blocks away from the void along x/y and upward by height.
     const [ex, ey] = project(x * 1.55 + 0.5, y * 1.55 + 0.5, z * 1.7 + 1);
-    return { ...b, i, faces, cx, cy, explode: [ex - cx, ey - cy] };
+    // Cracks radiate from the top face's centre toward its corners, revealed in stages while mining.
+    const [tx, ty] = project(x + 0.5, y + 0.5, z + 1);
+    const crack = [
+      `M${tx} ${ty}l-7 -2l-4 -4`, `M${tx} ${ty}l6 3l7 1`, `M${tx} ${ty}l-3 5l-8 2`, `M${tx} ${ty}l4 -5l9 -1`,
+    ];
+    return { ...b, i, faces, cx, cy, crack, explode: [ex - cx, ey - cy] };
   });
 }
 
@@ -127,6 +132,65 @@ export default function VoxelSpecimen() {
     raf.current = requestAnimationFrame(applyOffsets);
   };
 
+  /* ---------- mining ---------- */
+  const [mined, setMined] = useState(() => new Set());
+  const [generation, setGeneration] = useState({});
+  const [mining, setMining] = useState(null); // { idx, stage }
+  const [fragments, setFragments] = useState([]);
+  const [count, setCount] = useState(0);
+  const [nudge, setNudge] = useState(null);
+  const mineTimer = useRef();
+  const respawnTimers = useRef([]);
+
+  // A block can be mined only when nothing unmined sits directly on top of it.
+  const isExposed = useCallback(
+    (b) => !blocks.some((o) => o.x === b.x && o.y === b.y && o.z === b.z + 1 && !mined.has(o.i)),
+    [blocks, mined],
+  );
+
+  const cancelMining = () => { clearInterval(mineTimer.current); setMining(null); };
+
+  const breakBlock = (b) => {
+    const colors = palette[b.tint];
+    const id = Date.now();
+    setFragments((f) => [...f, ...Array.from({ length: 9 }, (_, k) => ({
+      id: `${id}-${k}`, x: b.cx, y: b.cy - 6, color: colors[k % 3],
+      dx: Math.cos((k / 9) * Math.PI * 2) * (16 + Math.random() * 18),
+      dy: -12 - Math.random() * 26, r: Math.random() * 360,
+    }))]);
+    setTimeout(() => setFragments((f) => f.filter((p) => !p.id.startsWith(`${id}-`))), 900);
+    setMined((m) => new Set(m).add(b.i));
+    setCount((c) => c + 1);
+    respawnTimers.current.push(setTimeout(() => {
+      setMined((m) => { const next = new Set(m); next.delete(b.i); return next; });
+      setGeneration((g) => ({ ...g, [b.i]: (g[b.i] || 0) + 1 }));
+    }, 9000 + Math.random() * 3000));
+  };
+
+  const startMining = (b) => (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (!isExposed(b)) {
+      setNudge(b.i);
+      setTimeout(() => setNudge(null), 300);
+      return;
+    }
+    clearInterval(mineTimer.current);
+    let stage = 0;
+    setMining({ idx: b.i, stage });
+    mineTimer.current = setInterval(() => {
+      stage += 1;
+      if (stage >= 5) {
+        clearInterval(mineTimer.current);
+        setMining(null);
+        breakBlock(b);
+      } else {
+        setMining({ idx: b.i, stage });
+      }
+    }, reduced ? 60 : 130);
+  };
+
+  useEffect(() => () => { clearInterval(mineTimer.current); respawnTimers.current.forEach(clearTimeout); }, []);
+
   const wire = mode === 'wire';
   const modes = [['solid', 'Solid'], ['wire', 'Wireframe'], ['exploded', 'Exploded']];
 
@@ -151,7 +215,7 @@ export default function VoxelSpecimen() {
           <ellipse className="void-glow" cx="310" cy="340" rx="220" ry="115" fill="url(#voidGlow)" />
           <path className="floor-grid" d={floorLines} stroke="#3f1919" strokeWidth=".55" opacity=".65" />
           <path d="M310 166V456M42 318H578" stroke="#702024" strokeDasharray="2 6" strokeWidth=".7" opacity=".5" className="axis-lines" />
-          <polygon points={holeFloor} fill="#050202" stroke="#5a1a1a" strokeWidth=".75" />
+          <polygon className="hole-floor" points={holeFloor} fill="#050202" stroke="#5a1a1a" strokeWidth=".75" />
           <ellipse className="hole-pulse" cx={holeX} cy={holeY} rx="62" ry="31" fill="url(#holeGlow)" />
           <g className="hole-motes">
             {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -159,23 +223,36 @@ export default function VoxelSpecimen() {
             ))}
           </g>
           {blocks.map((b, idx) => {
+            if (mined.has(b.i)) return null;
             const c = palette[b.tint];
+            const gen = generation[b.i] || 0;
+            const stage = mining?.idx === b.i ? mining.stage : 0;
             const group = (
               <g
-                key={idx}
+                key={`${idx}-${gen}`}
                 ref={(el) => { voxelRefs.current[idx] = el; }}
-                className="voxel"
-                style={{ animationDelay: `${0.25 + idx * 0.008 + b.z * 0.05}s` }}
+                className={`voxel ${stage ? `mining stage-${stage}` : ''} ${nudge === b.i ? 'nudge' : ''}`}
+                style={{ animationDelay: gen ? '0s' : `${0.25 + idx * 0.008 + b.z * 0.05}s` }}
+                onPointerDown={startMining(b)}
+                onPointerUp={cancelMining}
+                onPointerLeave={cancelMining}
+                onPointerCancel={cancelMining}
               >
                 <polygon points={b.faces.left} style={{ fill: wire ? '#080404' : c[1], stroke: wire ? '#7b2528' : '#6a2525' }} strokeWidth=".75" />
                 <polygon points={b.faces.right} style={{ fill: wire ? '#080404' : c[2], stroke: wire ? '#7b2528' : '#6a2525' }} strokeWidth=".75" />
                 <polygon className="voxel-top" points={b.faces.top} style={{ fill: wire ? '#110706' : c[0], stroke: wire ? '#bd3a35' : '#6a2525' }} strokeWidth=".75" />
+                {stage > 0 && <path className="crack" d={b.crack.slice(0, stage).join('')} />}
               </g>
             );
             return b.floating ? (
-              <g key={idx} className="voxel-float" style={{ animationDelay: `${idx % 4 * -1.3}s` }}>{group}</g>
+              <g key={`f-${idx}-${gen}`} className="voxel-float" style={{ animationDelay: `${idx % 4 * -1.3}s` }}>{group}</g>
             ) : group;
           })}
+          <g className="fragments">
+            {fragments.map((f) => (
+              <rect key={f.id} x={f.x - 2.5} y={f.y - 2.5} width="5" height="5" fill={f.color} style={{ '--dx': `${f.dx}px`, '--dy': `${f.dy}px`, '--r': `${f.r}deg` }} />
+            ))}
+          </g>
           <path d="M70 200h75l43 42M488 350h57v38" fill="none" stroke="#93534b" strokeWidth=".7" className="callout-lines" />
           <circle className="ping" cx="188" cy="242" r="2" fill="#ff2a2a" />
           <circle className="ping" cx="488" cy="350" r="2" fill="#ff2a2a" style={{ animationDelay: '1.2s' }} />
@@ -190,7 +267,9 @@ export default function VoxelSpecimen() {
         </svg>
       </motion.div>
       <figcaption className="specimen-controls">
-        <span>A WORLD IS ONLY THE BEGINNING.</span>
+        <span className="mine-status" aria-live="polite">
+          {count ? <>BLOCKS MINED <b>{String(count).padStart(2, '0')}</b> · THEY GROW BACK</> : fine ? 'HOLD A BLOCK TO MINE IT.' : 'TAP AND HOLD A BLOCK TO MINE IT.'}
+        </span>
         <div className="control-buttons" role="group" aria-label="Illustration view">
           {modes.map(([id, label]) => (
             <button key={id} type="button" aria-pressed={mode === id} onClick={() => setMode(id)}>
