@@ -1,24 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080404">
-  <meta name="color-scheme" content="dark">
   <title>pustka — Minecraft. From the void.</title>
   <meta name="description" content="pustka — a workshop for Minecraft software. Explore our projects, read the documentation, and build with our APIs.">
+  <link rel="canonical" href="https://pustka.sh/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="pustka">
   <meta property="og:title" content="pustka — Minecraft. From the void.">
-  <meta property="og:description" content="A workshop for Minecraft mods, loaders, proxies, and the ideas in between.">
+  <meta property="og:description" content="pustka — a workshop for Minecraft software. Explore our projects, read the documentation, and build with our APIs.">
   <meta property="og:url" content="https://pustka.sh/">
-  <meta property="og:image" content="https://pustka.sh/icon-192.png">
-  <meta name="twitter:card" content="summary">
-  <link rel="icon" href="./pustka-ring-clean.svg" type="image/svg+xml">
-  <link rel="alternate icon" href="./favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-  <link rel="manifest" href="./manifest.webmanifest">
-  <style>html,body{background:#080404;color:#f4e9e4;margin:0}</style>
+  <meta property="og:image" content="https://pustka.sh/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="pustka — Minecraft. From the void.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://pustka.sh/og.png">
+  <link rel="icon" href="/pustka-ring-clean.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+  <link rel="preload" href="/fonts/jetbrains-mono-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    // Apply the saved theme before first paint, so light mode never flashes dark.
+    try {
+      var t = localStorage.getItem('pustka-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      if (t === 'light') document.querySelector('meta[name=theme-color]').content = '#f7f0eb';
+    } catch (e) {}
+  </script>
+  <style>html{background:#080404;color:#f4e9e4}html[data-theme=light]{background:#f7f0eb;color:#1c0e0c}body{margin:0}</style>
 </head>
 <body>
   <div id="root"><noscript><div style="font-family:monospace;padding:60px 6%"><h1>pustka</h1><p>A workshop for Minecraft software.</p><p><a style="color:#ff2a2a" href="https://github.com/pustka-sh/Relay">Explore Relay and its documentation on GitHub →</a></p><p>Enable JavaScript to use this site’s project browser and search.</p></div></noscript></div>

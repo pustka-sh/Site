@@ -1,15 +1,36 @@
+// Shared by the React app and by scripts/postbuild.mjs (plain Node), so keep it JSX-free.
+export const SITE = 'https://pustka.sh';
 export const SOURCE = 'https://github.com/pustka-sh/Relay';
 export const ORG = 'https://github.com/pustka-sh';
+export const ISSUES = `${SOURCE}/issues`;
 
+export const docGroups = ['START HERE', 'INTEGRATIONS', 'TOOLS & REFERENCE'];
+
+// Reading order. Previous/next links and the sidebar both follow it.
 export const docNav = [
   { id: 'relay', title: 'Introduction', group: 'START HERE' },
   { id: 'quickstart', title: 'Quick start', group: 'START HERE' },
+  { id: 'compatibility', title: 'Compatibility', group: 'START HERE' },
   { id: 'backend', title: 'Backend API', group: 'INTEGRATIONS' },
   { id: 'client', title: 'Client API', group: 'INTEGRATIONS' },
   { id: 'packets', title: 'Typed packets', group: 'INTEGRATIONS' },
+  { id: 'api', title: 'Dashboard API', group: 'INTEGRATIONS' },
+  { id: 'configuration', title: 'Config builder', group: 'TOOLS & REFERENCE' },
+  { id: 'protocol-ids', title: 'Protocol IDs', group: 'TOOLS & REFERENCE' },
 ];
 
-// Page metadata and in-page sections. Bodies live in src/pages/docContent.jsx.
+export const docPath = (id) => (id === 'api' ? '/api' : `/docs/${id}`);
+export const docTitle = (id) => docNav.find((d) => d.id === id)?.title;
+export const docNeighbours = (id) => {
+  const i = docNav.findIndex((d) => d.id === id);
+  return { previous: docNav[i - 1]?.id, next: docNav[i + 1]?.id };
+};
+
+/*
+ * Page metadata. `toc` lists the hand-written sections; pages with `upstream`
+ * also render that synced document (or README sections) as a full reference
+ * below, and its headings are appended to the table of contents.
+ */
 export const docMeta = {
   relay: {
     title: 'Meet Relay.',
@@ -17,7 +38,7 @@ export const docMeta = {
     source: SOURCE,
     sourceLabel: 'Relay repository',
     toc: [['overview', 'A look inside'], ['requirements', 'Before you begin']],
-    next: 'quickstart',
+    upstream: { kind: 'readme', key: 'relay', label: 'From the README' },
   },
   quickstart: {
     title: 'From source to server.',
@@ -25,8 +46,14 @@ export const docMeta = {
     source: `${SOURCE}#quick-start`,
     sourceLabel: 'Complete setup guide',
     toc: [['build', 'Start from source'], ['backend', 'Connect Paper'], ['check', 'Link and check']],
-    previous: 'relay',
-    next: 'backend',
+    upstream: { kind: 'readme', key: 'quickstart', label: 'Full setup guide' },
+  },
+  compatibility: {
+    title: 'What it runs with.',
+    description: 'Minecraft versions, protocol numbers, and how sure each one is.',
+    source: `${SOURCE}/blob/main/docs/protocol-ids.md`,
+    sourceLabel: 'Protocol IDs reference',
+    toc: [['versions', 'Supported versions'], ['confidence', 'Reading the table'], ['requirements', 'Requirements']],
   },
   backend: {
     title: 'The backend connection.',
@@ -34,8 +61,7 @@ export const docMeta = {
     source: `${SOURCE}/blob/main/docs/backend-api.md`,
     sourceLabel: 'Backend wire reference',
     toc: [['channels', 'Channels'], ['operations', 'Queries and actions'], ['boundary', 'Trust boundary']],
-    previous: 'quickstart',
-    next: 'client',
+    upstream: { kind: 'doc', key: 'backend', label: 'Full wire reference' },
   },
   client: {
     title: 'A conversation with the client.',
@@ -43,8 +69,7 @@ export const docMeta = {
     source: `${SOURCE}/blob/main/docs/client-api.md`,
     sourceLabel: 'Client wire reference',
     toc: [['handshake', 'Handshake'], ['messages', 'Messages'], ['permissions', 'Permissions']],
-    previous: 'backend',
-    next: 'packets',
+    upstream: { kind: 'doc', key: 'client', label: 'Full wire reference' },
   },
   packets: {
     title: 'Packets with a shared language.',
@@ -52,7 +77,7 @@ export const docMeta = {
     source: `${SOURCE}/blob/main/docs/server-packets.md`,
     sourceLabel: 'Typed packet reference',
     toc: [['registry', 'The registry'], ['delivery', 'Delivery'], ['example', 'Working example']],
-    previous: 'client',
+    upstream: { kind: 'doc', key: 'packets', label: 'Full reference' },
   },
   api: {
     title: 'The reference layer.',
@@ -60,50 +85,84 @@ export const docMeta = {
     source: `${SOURCE}#dashboard-api`,
     sourceLabel: 'Upstream dashboard API',
     toc: [['dashboard', 'Dashboard companion'], ['routes', 'Routes'], ['integrations', 'Other protocols']],
+    upstream: { kind: 'readme', key: 'api', label: 'From the README' },
+  },
+  configuration: {
+    title: 'Build a relay.toml.',
+    description: 'Pick your settings, copy a working config, and the matching Paper files.',
+    source: `${SOURCE}/blob/main/proxy/src/main/resources/relay.default.toml`,
+    sourceLabel: 'Default relay.toml',
+    toc: [['builder', 'The builder'], ['output', 'Your files'], ['default', 'The full default']],
+    wide: true,
+  },
+  'protocol-ids': {
+    title: 'Protocol IDs.',
+    description: 'The packet ids Relay depends on, per Minecraft protocol version.',
+    source: `${SOURCE}/blob/main/docs/protocol-ids.md`,
+    sourceLabel: 'Protocol IDs on GitHub',
+    toc: [],
+    upstream: { kind: 'doc', key: 'protocol-ids', label: 'Reference', only: true },
   },
 };
 
 export const endpoints = [
-  { method: 'GET', path: '/api/overview', detail: 'Network totals and balancing mode.' },
-  { method: 'GET', path: '/api/servers', detail: 'Backend health, latency, population, and resource readings.' },
-  { method: 'GET', path: '/api/groups', detail: 'Backend groups and their totals.' },
-  { method: 'GET', path: '/api/players', detail: 'A paginated view of players and their routes.', query: ['q', 'server', 'offset', 'limit'] },
-  { method: 'WS', path: '/api/events', detail: 'A live stream of player and backend-health events.' },
-  { method: 'GET', path: '/api/audit', detail: 'Recent network operations.' },
-  { method: 'POST', path: '/api/actions/{drain,send,evacuate,kick}', detail: 'Permission-controlled network actions.' },
+  { method: 'GET', path: '/api/overview', detail: 'Players, uptime, backend and group counts, and the balance strategy.' },
+  { method: 'GET', path: '/api/servers', detail: 'Each backend: address, group, health, latency, version, player count, and a load object with TPS, MSPT, heap and CPU.' },
+  { method: 'GET', path: '/api/groups', detail: 'Each group, its members, and its total.' },
+  { method: 'GET', path: '/api/players', detail: 'One page of who is online, with each player’s backend and full network route.', query: ['q', 'server', 'offset', 'limit'] },
+  { method: 'WS', path: '/api/events', detail: 'One socket carrying every event type: connects, disconnects, switches, and backend health changes.' },
+  { method: 'GET', path: '/api/audit', detail: 'Who did what, newest first.' },
+  { method: 'POST', path: '/api/actions/{drain,send,evacuate,kick}', detail: 'Permission-checked, CSRF-checked network actions, each written to the audit log — refusals included.' },
 ];
 
-const docTitle = (id) => (id === 'api' ? 'Dashboard API' : docNav.find((d) => d.id === id).title);
-export const docPath = (id) => (id === 'api' ? '/api' : `/docs/${id}`);
+// Every route that gets its own HTML file at build time (titles, descriptions, sitemap).
+export const pages = [
+  { path: '/', title: 'pustka — Minecraft. From the void.', description: 'pustka — a workshop for Minecraft software. Explore our projects, read the documentation, and build with our APIs.' },
+  { path: '/projects', title: 'Projects — pustka', description: 'The pustka project register: Relay, a Minecraft server proxy built in Java, and what comes next.' },
+  { path: '/changelog', title: 'Changelog — pustka', description: 'Every change to Relay, straight from its commit history.' },
+  { path: '/help', title: 'Help — pustka', description: 'Get help with Relay: diagnose a setup, report an issue, contribute, and common questions.' },
+  ...docNav.map((d) => ({
+    path: docPath(d.id),
+    title: `${d.id === 'api' ? 'Relay API' : docMeta[d.id].title.replace(/\.$/, '')} — pustka`,
+    description: docMeta[d.id].description,
+  })),
+];
 
 export const searchIndex = [
   { title: 'Home', detail: 'pustka / The workshop', to: '/', terms: 'home start workshop pustka', kind: 'page' },
-  { title: 'Relay', detail: 'Project / Minecraft server proxy', to: '/projects', terms: 'java proxy projects register network infrastructure', kind: 'project' },
-  ...[...docNav.map((d) => d.id), 'api'].flatMap((id) => [
+  { title: 'Relay', detail: 'Project / Minecraft server proxy', to: '/projects', terms: 'java proxy projects register network infrastructure roadmap status phases', kind: 'project' },
+  { title: 'Changelog', detail: 'Relay / Commit history', to: '/changelog', terms: 'changes history commits releases what is new', kind: 'page' },
+  { title: 'Help', detail: 'Support, issues, contributing, FAQ', to: '/help', terms: 'help support bug issue report contribute faq question doctor', kind: 'page' },
+  ...docNav.flatMap((d) => [
     {
-      title: docTitle(id),
-      detail: id === 'api' ? 'Relay / HTTP & WebSocket routes' : 'Relay / Documentation',
-      to: docPath(id),
-      terms: `${docMeta[id].title} ${docMeta[id].description} ${id}`,
-      kind: 'doc',
+      title: d.title,
+      detail: d.id === 'api' ? 'Relay / HTTP & WebSocket routes' : `Relay / ${d.group.toLowerCase()}`,
+      to: docPath(d.id),
+      terms: `${docMeta[d.id].title} ${docMeta[d.id].description} ${d.id}`,
+      kind: d.id === 'configuration' ? 'tool' : 'doc',
     },
-    ...docMeta[id].toc.map(([anchor, label]) => ({
-      title: label,
-      detail: `${docTitle(id)} / Section`,
-      to: docPath(id),
-      anchor,
-      terms: `${anchor} ${docTitle(id)}`,
-      kind: 'section',
+    ...docMeta[d.id].toc.map(([anchor, label]) => ({
+      title: label, detail: `${d.title} / Section`, to: docPath(d.id), anchor, terms: `${anchor} ${d.title}`, kind: 'section',
     })),
   ]),
   ...endpoints.map((e) => ({
-    title: `${e.method} ${e.path}`,
-    detail: `Dashboard API / ${e.detail}`,
-    to: '/api',
-    anchor: 'routes',
-    terms: `endpoint route ${e.detail}`,
-    kind: 'endpoint',
+    title: `${e.method} ${e.path}`, detail: `Dashboard API / ${e.detail}`, to: '/api', anchor: 'routes', terms: `endpoint route ${e.detail}`, kind: 'endpoint',
   })),
   { title: 'GitHub organization', detail: 'External / github.com/pustka-sh', href: ORG, terms: 'source code repositories github', kind: 'external' },
-  { title: 'Report an issue', detail: 'External / Relay issues', href: `${SOURCE}/issues`, terms: 'bug feedback issue help', kind: 'external' },
+  { title: 'Report an issue', detail: 'External / Relay issues', href: ISSUES, terms: 'bug feedback issue help', kind: 'external' },
 ];
+
+// Answers paraphrase Relay's README; each links to where it says so.
+export const faq = [
+  { id: 'bedrock', q: 'Can Bedrock players join through Relay?', a: 'Yes, through Geyser. Geyser runs as an ordinary backend entry; Relay does not speak Bedrock itself, exactly as it works behind Velocity today.', to: '/docs/quickstart#ref-configuring-backends' },
+  { id: 'velocity', q: 'Do backends already set up for Velocity need changes?', a: 'No. Relay’s modern forwarding is wire-compatible with Velocity’s, so backends configured for Velocity need no change.', to: '/docs/quickstart#ref-configuring-backends' },
+  { id: 'bungee-plugins', q: 'Will my BungeeCord network plugins work?', a: 'The backend API is BungeeCord-compatible plugin messaging on bungeecord:main, so existing network plugins are designed to work unchanged.', to: '/docs/backend' },
+  { id: 'old-versions', q: 'Can players join on versions older than 1.20.2?', a: 'No. 1.20.2 introduced the configuration phase, and every version from there shares one connection model. Supporting older ones would mean carrying a second switching implementation forever.', to: '/docs/compatibility' },
+  { id: 'inventory', q: 'Do players keep their inventory between servers?', a: 'Relay moves connections, not game state. Inventory and game state across backends is a backend-database problem, deliberately out of scope.', to: '/docs/relay#ref-design-notes' },
+  { id: 'plugins', q: 'Can I write plugins that run inside the proxy?', a: 'Not yet. The in-proxy plugin system is phase 3 of the plan and has not started. Backend plugins can already talk to the proxy through the backend API.', to: '/docs/relay#ref-status' },
+  { id: 'dashboard-exposed', q: 'Is the dashboard safe to expose?', a: 'It is off by default and binds to loopback. Off loopback it requires accounts, or refuses to start, and every action is permission-checked and audited. Relay warns when bound anywhere but loopback.', to: '/api#ref-dashboard-api' },
+  { id: 'docker', q: 'Can I run Relay in Docker?', a: 'Yes: docker compose up -d --build. Config, logs and the forwarding secret live in ./data, and the compose file publishes 25577 so it can run beside an existing proxy.', to: '/docs/quickstart#ref-docker' },
+  { id: 'restart', q: 'What happens to players when a backend restarts?', a: 'With fallback-on-backend-loss on (the default), they move to the next server in the try list instead of leaving the network. Draining takes a backend out of rotation before a planned restart.', to: '/docs/configuration' },
+];
+
+searchIndex.push(...faq.map((f) => ({ title: f.q, detail: 'Help / FAQ', to: '/help', anchor: `faq-${f.id}`, terms: `faq question ${f.a}`, kind: 'faq' })));

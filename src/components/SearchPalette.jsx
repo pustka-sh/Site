@@ -1,13 +1,41 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { searchIndex } from '../data/site.js';
+import { searchIndex, docNav } from '../data/site.js';
 
-const kindLabel = { page: 'PAGE', project: 'PROJECT', doc: 'DOC', section: 'SECTION', endpoint: 'ROUTE', external: 'LINK' };
+const kindLabel = { page: 'PAGE', project: 'PROJECT', doc: 'DOC', section: 'SECTION', endpoint: 'ROUTE', external: 'LINK', tool: 'TOOL', reference: 'REF', faq: 'FAQ' };
+
+// Headings from the synced upstream docs, loaded the first time the palette opens.
+const upstreamRoutes = { relay: '/docs/relay', quickstart: '/docs/quickstart', api: '/api' };
+let upstreamIndex = null;
+async function loadUpstream() {
+  if (upstreamIndex) return upstreamIndex;
+  const { default: data } = await import('../content/relay.json');
+  const entries = [];
+  const add = (doc, to, pageTitle) => doc.toc.forEach(([anchor, label]) => entries.push({
+    title: label, detail: `${pageTitle} / Full reference`, to, anchor, terms: `${label} ${pageTitle} reference upstream`, kind: 'reference',
+  }));
+  const addText = (doc, to, pageTitle) => entries.push({
+    title: `${pageTitle} — full text`, detail: `Search inside ${doc.file}`, to, terms: doc.text, kind: 'reference', fulltext: true,
+  });
+  Object.entries(data.docs).forEach(([key, doc]) => {
+    const t = docNav.find((d) => d.id === key)?.title || doc.title;
+    add(doc, `/docs/${key}`, t);
+    addText(doc, `/docs/${key}`, t);
+  });
+  Object.entries(data.readme).forEach(([key, doc]) => {
+    const t = docNav.find((d) => d.id === key)?.title || 'README';
+    add(doc, upstreamRoutes[key], t);
+    addText(doc, upstreamRoutes[key], t);
+  });
+  upstreamIndex = entries;
+  return entries;
+}
 
 // Lightweight fuzzy scoring: exact substring beats in-order characters; title beats terms.
 function score(item, q) {
   if (!q) return 1;
+  if (item.fulltext) return item.terms.toLowerCase().includes(q) ? 20 : 0;
   const title = item.title.toLowerCase();
   const hay = `${item.title} ${item.detail} ${item.terms}`.toLowerCase();
   if (title.startsWith(q)) return 100;
@@ -20,6 +48,13 @@ function score(item, q) {
   return i === q.length ? 15 : 0;
 }
 
+function snippet(text, q) {
+  const i = text.toLowerCase().indexOf(q);
+  if (i < 0) return '';
+  const start = Math.max(0, i - 40);
+  return `${start ? '…' : ''}${text.slice(start, i + q.length + 60).trim()}…`;
+}
+
 export default function SearchPalette({ open, onClose }) {
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -27,15 +62,18 @@ export default function SearchPalette({ open, onClose }) {
   const listRef = useRef(null);
   const navigate = useNavigate();
 
+  const [extra, setExtra] = useState([]);
+  useEffect(() => { if (open) loadUpstream().then(setExtra).catch(() => {}); }, [open]);
+
   const results = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return searchIndex
+    return [...searchIndex, ...(q ? extra : [])]
       .map((item) => ({ item, s: score(item, q) }))
       .filter((r) => r.s > 0)
       .sort((a, b) => b.s - a.s)
-      .slice(0, q ? 12 : 8)
-      .map((r) => r.item);
-  }, [query]);
+      .slice(0, q ? 14 : 8)
+      .map((r) => (r.item.fulltext ? { ...r.item, detail: snippet(r.item.terms, q) } : r.item));
+  }, [query, extra]);
 
   useEffect(() => { setActive(0); }, [query]);
   useEffect(() => {
@@ -55,8 +93,7 @@ export default function SearchPalette({ open, onClose }) {
     onClose();
     if (!item) return;
     if (item.href) return void window.open(item.href, '_blank', 'noopener');
-    navigate(item.to);
-    if (item.anchor) setTimeout(() => document.getElementById(item.anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 550);
+    navigate(item.anchor ? `${item.to}#${item.anchor}` : item.to);
   };
 
   const onKeyDown = (e) => {
@@ -109,7 +146,7 @@ export default function SearchPalette({ open, onClose }) {
                   <motion.button
                     type="button"
                     layout="position"
-                    key={item.title + item.detail}
+                    key={`${item.title}|${item.detail}|${item.anchor || ''}`}
                     id={`palette-opt-${i}`}
                     role="option"
                     aria-selected={i === active}

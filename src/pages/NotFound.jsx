@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import RingLogo from '../components/RingLogo.jsx';
 
 export default function NotFound() {
+  useEffect(() => { document.title = 'The void — pustka'; }, []);
   return (
     <div className="container page-intro not-found">
       <motion.div className="nf-ring" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 120, damping: 14 }} aria-hidden="true">

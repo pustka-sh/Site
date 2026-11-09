@@ -6,10 +6,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "build": "vite build && node scripts/postbuild.mjs",
+    "preview": "vite preview",
+    "sync": "node scripts/sync-relay.mjs"
   },
   "dependencies": {
+    "highlight.js": "^11.11.1",
     "motion": "^14.11.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -17,6 +19,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.2.0",
+    "github-slugger": "^2.0.0",
+    "marked": "^16.4.1",
     "vite": "^7.3.8"
   }
 }

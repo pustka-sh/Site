@@ -1,10 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Relative base keeps the build portable: dist/ can be served from any path
-// or opened from disk, and hash routing needs no server rewrite rules.
+// Clean URLs (pustka.sh/docs/relay). scripts/postbuild.mjs writes an HTML file
+// for every route, so any static host serves them without rewrite rules.
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [react()],
   build: {
     outDir: 'dist',

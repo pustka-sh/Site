@@ -2,6 +2,9 @@ import { Link } from 'react-router-dom';
 import Topology from '../components/Topology.jsx';
 import CodeBlock, { Callout } from '../components/CodeBlock.jsx';
 import External from '../components/External.jsx';
+import ConfigBuilder from '../components/ConfigBuilder.jsx';
+import Reveal from '../components/Reveal.jsx';
+import { useRelayContent } from '../lib/useRelayContent.js';
 import { SOURCE } from '../data/site.js';
 
 const Table = ({ head, rows }) => (
@@ -49,7 +52,7 @@ export const docBodies = {
     <>
       <h2 id="channels">Channels</h2>
       <p>Relay accepts BungeeCord-compatible plugin messages on these channels:</p>
-      <CodeBlock code={'bungeecord:main\nBungeeCord\nrelay:main'} label="plugin channels" />
+      <CodeBlock code={'bungeecord:main\nBungeeCord\nrelay:main'} label="plugin channels" lang="text" />
       <p>Enable the integration with <code>backend-api = true</code>. Messages begin with a sub-channel name and use Java UTF strings and big-endian primitives.</p>
       <h2 id="operations">Queries and actions</h2>
       <Table head={['Type', 'Examples']} rows={[['Read', 'GetServer, GetServers, PlayerCount, PlayerList'], ['Route', 'Connect, ConnectOther'], ['Interact', 'Message, MessageRaw, KickPlayer']]} />
@@ -62,7 +65,7 @@ export const docBodies = {
     <>
       <h2 id="handshake">Start with a handshake</h2>
       <p>Enable <code>client-api = true</code> and communicate on <code>relay:api_v1</code>. The client sends <code>Hello</code> before making requests. Vanilla clients receive no unsolicited API messages.</p>
-      <CodeBlock code={'channel   relay:api_v1\nversion   1\nencoding  VarInt message type + body'} label="protocol identity" />
+      <CodeBlock code={'channel   relay:api_v1\nversion   1\nencoding  VarInt message type + body'} label="protocol identity" lang="text" />
       <h2 id="messages">Serverbound messages</h2>
       <Table head={['ID', 'Message', 'Purpose']} rows={[['0x00', 'Hello', 'Negotiate version and identify the mod'], ['0x01', 'List Servers', 'Query available destinations'], ['0x02', 'Request Switch', 'Ask to move to another server']]} />
       <h2 id="permissions">Permissions still apply</h2>
@@ -82,6 +85,72 @@ export const docBodies = {
     </>
   ),
 };
+
+const idsLabel = {
+  live: ['Live-verified', 'Every id checked against a running Paper server.'],
+  report: ['Packet report', 'Ids read from Mojang’s own generated packet report.'],
+  bracketed: ['Bracketed', 'No packet report; ids sit between verified neighbours.'],
+};
+
+function Compatibility() {
+  const data = useRelayContent();
+  return (
+    <>
+      <p>Relay speaks one connection model: the configuration phase introduced in Minecraft 1.20.2. That makes 1.20.2 the floor, and every version above it shares a single server-switching implementation.</p>
+      <h2 id="versions">Supported versions</h2>
+      {!data ? <div className="skeleton" style={{ height: 380 }} /> : (
+        <>
+          <div className="table-wrap">
+            <table className="reference-table compat-table">
+              <thead><tr><th>Minecraft</th><th>Protocol</th><th>Packet ids</th><th>Join tested</th></tr></thead>
+              <tbody>
+                {data.versions.map((v, i) => (
+                  <Reveal as="tr" key={v.protocol} delay={i * 0.04} y={8}>
+                    <td><b>{v.versions.join(' – ')}</b></td>
+                    <td><code>{v.protocol}</code></td>
+                    <td><span className={`badge badge-${v.ids}`}>{idsLabel[v.ids][0]}</span></td>
+                    <td>{v.joinTested.length ? <span className="badge badge-ok">✓ {v.joinTested.join(', ')}</span> : <span className="muted-dash">—</span>}</td>
+                  </Reveal>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="sync-note">Generated from <code>ProtocolVersion.java</code>, <code>docs/protocol-ids.md</code> and the README at Relay <External href={`${SOURCE}/commit/${data.commit}`}>{data.commit.slice(0, 7)} ↗</External>, synced {data.syncedAt}.</p>
+        </>
+      )}
+      <h2 id="confidence">Reading the table</h2>
+      <div className="legend-grid">
+        {Object.entries(idsLabel).map(([k, [label, text]]) => (
+          <div key={k}><span className={`badge badge-${k}`}>{label}</span><p>{text}</p></div>
+        ))}
+        <div><span className="badge badge-ok">✓ Join tested</span><p>The README’s status table reports a real client joining, playing and switching servers on that version.</p></div>
+      </div>
+      <Callout><strong>Read it alongside the caveats.</strong> The README’s “Before you trust it” section says only 1.20.2 has been exercised for real, with every other version’s ids still partly inference. A wrong play-state id degrades gracefully, and any id can be corrected from <code>relay.toml</code> without a rebuild. See <Link to="/docs/protocol-ids">Protocol IDs</Link>.</Callout>
+      <h2 id="requirements">Requirements</h2>
+      <Table head={['Component', 'Needs']} rows={[['Relay proxy', 'JDK 21+'], ['Relay plugin', 'Java 17, on Paper backends'], ['Backends', 'Paper with online-mode=false and modern forwarding'], ['relay.py helper', 'Python 3.11+, no dependencies']]} />
+    </>
+  );
+}
+
+function Configuration() {
+  const data = useRelayContent();
+  return (
+    <>
+      <p>Every option below is a real key from Relay’s <code>relay.default.toml</code>. Change what you need; the files on the right update as you type. Nothing is sent anywhere.</p>
+      <ConfigBuilder />
+      <h2 id="default">The full default</h2>
+      <p>The commented file Relay writes on first start, with every setting explained by its authors.</p>
+      <details className="default-config">
+        <summary>Show relay.default.toml</summary>
+        {data ? <CodeBlock code={data.defaultConfig} label="relay.default.toml" lang="toml" download="relay.default.toml" /> : <div className="skeleton" style={{ height: 200 }} />}
+      </details>
+    </>
+  );
+}
+
+docBodies.compatibility = Compatibility;
+docBodies.configuration = Configuration;
+docBodies['protocol-ids'] = () => null;
 
 export const ApiChoices = () => (
   <Choices items={[['/docs/backend', 'Backend plugin messaging'], ['/docs/client', 'Client mod protocol'], ['/docs/packets', 'Typed server packets']]} />
