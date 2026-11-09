@@ -8,7 +8,7 @@ export default function NotFound() {
   return (
     <div className="container page-intro not-found">
       <motion.div className="nf-ring" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 120, damping: 14 }} aria-hidden="true">
-        <RingLogo size={160} spin draw />
+        <RingLogo size={160} draw />
       </motion.div>
       <p className="section-label">404 / THE ACTUAL VOID</p>
       <h1 className="glitch" data-text="Nothing here. Yet.">Nothing here. Yet.</h1>

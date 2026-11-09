@@ -95,15 +95,19 @@ function ApiBody() {
 /** A synced upstream document, rendered and highlighted at sync time. */
 function Upstream({ doc, data, label, only }) {
   return (
-    <section className={`upstream ${only ? 'upstream-only' : ''}`} aria-label={label}>
+    <section className={`upstream ${only ? 'upstream-only' : ''}`} aria-labelledby={only ? undefined : 'full-reference'}>
       {!only && (
-        <div className="upstream-head" data-md-skip>
-          <span className="upstream-label">{label}</span>
-          <span className="upstream-meta">
-            Synced from <External href={doc.source}>{doc.file} ↗</External> at <External href={`${SOURCE}/commit/${data.commit}`}>{data.commit.slice(0, 7)}</External> · {data.syncedAt}
-          </span>
-        </div>
+        <header className="reference-intro">
+          <p className="part-kicker" data-md-skip>Part 2 · Full reference</p>
+          <h2 id="full-reference">{label}</h2>
+          <p className="reference-desc">The complete upstream document, kept in sync with Relay. The guide above is the short version.</p>
+        </header>
       )}
+      <dl className="reference-meta" data-md-skip>
+        <div><dt>Source</dt><dd><External href={doc.source}>{doc.file} ↗</External></dd></div>
+        <div><dt>Revision</dt><dd><External href={`${SOURCE}/commit/${data.commit}`}>{data.commit.slice(0, 7)}</External></dd></div>
+        <div><dt>Synced</dt><dd>{data.syncedAt}</dd></div>
+      </dl>
       <div className="upstream-body" dangerouslySetInnerHTML={{ __html: doc.html }} />
     </section>
   );
@@ -123,15 +127,35 @@ export default function Docs({ api = false }) {
   const progress = useSpring(scrollYProgress, { stiffness: 140, damping: 26 });
 
   const upstreamDoc = meta?.upstream && data ? data[meta.upstream.kind === 'doc' ? 'docs' : 'readme'][meta.upstream.key] : null;
-  const toc = useMemo(() => [...(meta?.toc || []), ...(upstreamDoc ? upstreamDoc.toc : [])], [meta, upstreamDoc]);
+  // Two groups: the hand-written guide, then the synced reference with its own hierarchy.
+  const tocGroups = useMemo(() => {
+    const groups = [];
+    if (meta?.toc.length) groups.push({ key: 'guide', label: 'Guide', items: meta.toc.map(([id, label]) => ({ id, label, level: 2 })) });
+    if (meta?.upstream) {
+      groups.push({
+        key: 'reference',
+        label: meta.upstream.only ? 'Reference' : 'Full reference',
+        anchor: meta.upstream.only ? undefined : 'full-reference',
+        pending: !upstreamDoc,
+        items: (upstreamDoc?.toc || []).map(([id, label, level = 2]) => ({ id, label, level })),
+      });
+    }
+    return groups;
+  }, [meta, upstreamDoc]);
+  const toc = tocGroups.flatMap((g) => g.items.map((i) => [i.id, i.label]));
   const active = useScrollSpy(toc.map(([id]) => id));
+  const hasGuideAndReference = Boolean(meta?.toc.length && meta?.upstream && !meta.upstream.only);
 
   useEffect(() => setMenuOpen(false), [key]);
 
   if (!meta) return <NotFound />;
   const { previous, next } = docNeighbours(key);
   const Body = api ? ApiBody : docBodies[key];
-  const curatedCount = meta.toc.length;
+  const jump = (id) => (e) => {
+    e.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: smooth(), block: 'start' });
+    window.history.replaceState(null, '', `#${id}`);
+  };
 
   // Links and copy buttons inside synced HTML are plain DOM; route them through React.
   const onArticleClick = async (e) => {
@@ -211,6 +235,7 @@ export default function Docs({ api = false }) {
           <External href={meta.source} className="doc-action">View on GitHub ↗</External>
         </motion.div>
         <motion.div ref={bodyRef} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.15 }}>
+          {hasGuideAndReference && <p className="part-kicker part-guide" data-md-skip>Part 1 · Guide</p>}
           <Body />
           {meta.upstream && (upstreamDoc
             ? <Upstream doc={upstreamDoc} data={data} label={meta.upstream.label} only={meta.upstream.only} />
@@ -227,19 +252,24 @@ export default function Docs({ api = false }) {
           <p>ON THIS PAGE</p>
           <div className="toc-track">
             <motion.span className="toc-progress" style={{ scaleY: progress }} aria-hidden="true" />
-            {toc.map(([id, label], i) => (
-              <a
-                key={id}
-                href={`#${id}`}
-                className={`${active === id ? 'active' : ''} ${i === curatedCount && curatedCount > 0 ? 'toc-divider' : ''}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  document.getElementById(id)?.scrollIntoView({ behavior: smooth(), block: 'start' });
-                  window.history.replaceState(null, '', `#${id}`);
-                }}
-              >
-                {label}
-              </a>
+            {tocGroups.map((g) => (
+              <div className={`toc-group toc-${g.key}`} key={g.key}>
+                {tocGroups.length > 1 || g.key === 'reference' ? (
+                  g.anchor
+                    ? <a className="toc-group-label" href={`#${g.anchor}`} onClick={jump(g.anchor)}>{g.label}</a>
+                    : <span className="toc-group-label">{g.label}</span>
+                ) : null}
+                {g.pending && <span className="toc-pending" aria-hidden="true" />}
+                <ul>
+                  {g.items.map((item) => (
+                    <li key={item.id} className={`toc-level-${item.level}`}>
+                      <a href={`#${item.id}`} className={active === item.id ? 'active' : ''} aria-current={active === item.id ? 'location' : undefined} onClick={jump(item.id)}>
+                        {item.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
           </div>
         </nav>

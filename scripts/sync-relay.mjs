@@ -97,7 +97,7 @@ try {
           const html = this.parser.parseInline(tokens);
           const plain = html.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
           const id = prefix + slugger.slug(plain);
-          if (depth === 2) toc.push([id, plain]);
+          if (depth === 2 || depth === 3) toc.push([id, plain, depth]); // [anchor, text, upstream heading level]
           const level = Math.min(depth + 1, 4); // page h1 is the site's own title
           return `<h${level} id="${id}">${html}</h${level}>\n`;
         },

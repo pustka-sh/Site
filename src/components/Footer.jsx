@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="footer-giant" aria-hidden="true">pustka</div>
       <div className="site-footer">
         <div>
-          <Link className="footer-name" to="/"><RingLogo size={26} spin glow={false} /> pustka<span>.sh</span></Link>
+          <Link className="footer-name" to="/"><RingLogo size={26} glow={false} /> pustka<span>.sh</span></Link>
           <p>From nothing, something.</p>
         </div>
         <div className="footer-cols">

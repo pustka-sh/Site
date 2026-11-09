@@ -36,11 +36,13 @@ URLs are clean (`/docs/relay`). The build writes an `index.html` into a folder f
 
 - **Hero voxel study**: an original isometric cutaway. Blocks rise on load, swell toward the cursor, tilt in 3D, and switch between solid, wireframe and exploded views. Hold a block to mine it: it cracks, shatters, and grows back.
 - **Ambient effects**: drifting embers pulled toward the pointer, a cursor glow, scroll progress, and a once-per-session logo intro.
-- **Motion throughout**: masked headline reveals, scrambled labels, magnetic buttons, 3D tilt cards, count-up figures, a marquee, page transitions, and a glitching "void."
-- **Light and dark themes**: dark by default, with the choice remembered on the device and applied before first paint.
-- **Docs**: hand-written guides followed by the full upstream reference, an animated sidebar, a scroll-spy table of contents, highlighted code with copy buttons, and **Copy as Markdown** on every page.
+- **Motion where it helps**: masked headline reveals, a scrambled eyebrow, magnetic buttons, page transitions, and a glitching "void." Project and reading content stays still.
+- **Homepage**: hero and voxel study, then Relay's project register (with compact specs and the routing diagram), one documentation index, and a short manifesto.
+- **Responsive header**: Changelog, Help and (on phones) GitHub collapse into a **More** disclosure as space runs out; checked from 320px to 1440px.
+- **Light and dark themes**: dark by default, with the choice remembered on the device and applied before first paint. All text meets WCAG AA contrast in both. Per the brand guide, the mark always sits on Void (in light mode on a Void square with a ring thickness of clear space) and is never rotated.
+- **Docs**: a hand-written guide (Part 1) followed by the full upstream reference (Part 2), a table of contents grouped into Guide and Full reference with indented subsections, an animated sidebar, scroll-spy, highlighted code with copy buttons, and **Copy as Markdown** on every page.
 - **Compatibility**: every supported Minecraft version and protocol number, with how sure each one is.
-- **Config builder**: real `relay.toml` keys, validated as you type, with matching `paper-global.yml` and `server.properties`. The forwarding secret is generated in the browser and never sent anywhere.
+- **Config builder**: real `relay.toml` keys, validated as you type, with matching `paper-global.yml` and `server.properties`. Side by side on wide screens; on tablets and phones a sticky **Settings / Generated files** switcher with a validation badge. The forwarding secret is generated in the browser and never sent anywhere.
 - **Changelog**: Relay's commit history as a filterable timeline. **Roadmap**: the README's phases on the Projects page.
 - **Help**: diagnosing with `relay.py doctor`, what to put in an issue, how to contribute, and an FAQ drawn from the README.
 - **Command palette** (`⌘K`, `Ctrl K` or `/`): pages, sections, API routes, FAQ, and full-text search across the synced docs.
@@ -59,7 +61,7 @@ All motion respects `prefers-reduced-motion`, and canvas effects pause in backgr
 | Config builder | `src/components/ConfigBuilder.jsx` |
 | Synced Relay content (generated) | `src/content/relay.json` via `scripts/sync-relay.mjs` |
 | Home page sections | `src/pages/Home.jsx` |
-| Project register | `src/components/ProjectsSection.jsx` |
+| Project register and its specs | `src/components/ProjectsSection.jsx` |
 | Changelog, Help, Projects pages | `src/pages/` |
 | Voxel illustration and mining | `src/components/VoxelSpecimen.jsx` |
 | Layout, effects, syntax colours | `src/styles/base.css`, `effects.css`, `code.css` |

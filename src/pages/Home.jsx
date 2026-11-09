@@ -1,13 +1,9 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import VoxelSpecimen from '../components/VoxelSpecimen.jsx';
-import Marquee from '../components/Marquee.jsx';
 import Magnetic from '../components/Magnetic.jsx';
 import ScrambleText from '../components/ScrambleText.jsx';
 import Reveal, { WordReveal } from '../components/Reveal.jsx';
-import TiltCard from '../components/TiltCard.jsx';
-import CountUp from '../components/CountUp.jsx';
-import Terminal from '../components/Terminal.jsx';
 import RingLogo from '../components/RingLogo.jsx';
 import External from '../components/External.jsx';
 import { ProjectsSection } from '../components/ProjectsSection.jsx';
@@ -62,102 +58,62 @@ function Hero() {
   );
 }
 
-const facts = [
-  { value: 21, suffix: '+', label: 'JDK', note: 'Relay is built in Java and needs JDK 21 or newer.' },
-  { value: 32768, suffix: ' B', label: 'CLIENT MESSAGE LIMIT', note: 'The size limit for each message on the client API, relay:api_v1.' },
-  { value: 20, suffix: '/s', label: 'CLIENT MESSAGE RATE', note: 'The client API’s rate limit, in messages per second.' },
-  { value: 3, suffix: '', label: 'INTEGRATION SURFACES', note: 'Backend messaging, the client mod protocol, and typed packets.' },
+const docIndex = [
+  {
+    label: 'Start here',
+    links: [
+      ['/docs/relay', 'Introduction', 'What Relay is and how it routes players.'],
+      ['/docs/quickstart', 'Quick start', 'From the source to your first backend.'],
+      ['/docs/compatibility', 'Compatibility', 'Minecraft versions, and how sure each one is.'],
+    ],
+  },
+  {
+    label: 'Integrate',
+    links: [
+      ['/docs/backend', 'Backend API', 'BungeeCord-compatible plugin messaging.'],
+      ['/docs/client', 'Client API', 'A negotiated protocol for client mods.'],
+      ['/docs/packets', 'Typed packets', 'Typed messages between backends.'],
+      ['/api', 'Dashboard API', 'HTTP and WebSocket routes for your network.'],
+    ],
+  },
+  {
+    label: 'Tools & reference',
+    links: [
+      ['/docs/configuration', 'Config builder', 'Generate relay.toml and the Paper files.'],
+      ['/docs/protocol-ids', 'Protocol IDs', 'Packet ids for every protocol version.'],
+      ['/changelog', 'Changelog', 'Every change, from the commit history.'],
+      ['/help', 'Help', 'Diagnose a setup, report an issue, FAQ.'],
+    ],
+  },
 ];
 
-function Facts() {
+function DocsIndex() {
   return (
-    <section className="facts" aria-labelledby="facts-label">
-      <Reveal className="facts-head">
-        <p className="section-label" id="facts-label">RELAY / BY THE SPEC</p>
-        <p className="facts-sub">Figures from the documentation, not from a marketing deck.</p>
-      </Reveal>
-      <div className="facts-grid">
-        {facts.map((f, i) => (
-          <Reveal key={f.label} delay={i * 0.08} className="fact">
-            <div className="fact-value"><CountUp to={f.value} /><span>{f.suffix}</span></div>
-            <p className="fact-label">{f.label}</p>
-            <p className="fact-note">{f.note}</p>
-          </Reveal>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-const surfaces = [
-  { n: '01', title: 'Backend messaging', body: 'BungeeCord-compatible plugin messages on bungeecord:main and relay:main.', to: '/docs/backend', glyph: '⇄' },
-  { n: '02', title: 'Client protocol', body: 'A negotiated, permission-checked conversation on relay:api_v1.', to: '/docs/client', glyph: '◇' },
-  { n: '03', title: 'Typed packets', body: 'Shared registries and fingerprints for messages between backends.', to: '/docs/packets', glyph: '▤' },
-  { n: '04', title: 'Dashboard API', body: 'HTTP and WebSocket routes for the network you run.', to: '/api', glyph: '◎' },
-];
-
-function Surfaces() {
-  return (
-    <section className="surfaces">
+    <section className="docs-index" aria-labelledby="docs-index-title">
       <div className="section-heading">
         <div>
-          <p className="section-label">02 / THE MOVING PARTS</p>
-          <WordReveal text="Every seam, documented." />
+          <p className="section-label">02 / THE DOCUMENTATION</p>
+          <h2 id="docs-index-title">Less guessing. More building.</h2>
         </div>
-        <Link className="text-link arrow-link" to="/docs/relay">Start with the introduction <span>→</span></Link>
+        <p className="docs-index-sub">Short guides first, with the full upstream reference behind each one.</p>
       </div>
-      <div className="surface-grid">
-        {surfaces.map((s, i) => (
-          <Reveal key={s.n} delay={i * 0.07}>
-            <TiltCard className="surface-card">
-              <Link to={s.to} className="surface-link">
-                <span className="surface-n">{s.n}</span>
-                <span className="surface-glyph" aria-hidden="true">{s.glyph}</span>
-                <h3>{s.title}</h3>
-                <p>{s.body}</p>
-                <span className="surface-go">Read <span aria-hidden="true">→</span></span>
-              </Link>
-            </TiltCard>
-          </Reveal>
+      <Reveal className="docs-index-grid">
+        {docIndex.map((col) => (
+          <div key={col.label} className="docs-index-col">
+            <h3>{col.label}</h3>
+            <ul>
+              {col.links.map(([to, title, body]) => (
+                <li key={to}>
+                  <Link to={to}>
+                    <span className="docs-index-title">{title}<span className="docs-index-arrow" aria-hidden="true">→</span></span>
+                    <span className="docs-index-body">{body}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-      </div>
-    </section>
-  );
-}
-
-function Reading() {
-  const rows = [
-    { n: '01', title: 'Get Relay running', body: 'From the source to your first backend.', to: '/docs/quickstart' },
-    { n: '02', title: 'Connect the pieces', body: 'Backend messages, client mods, typed packets.', to: '/docs/backend' },
-    { n: '03', title: 'Read the API', body: 'The dashboard HTTP and WebSocket reference.', to: '/api' },
-  ];
-  return (
-    <section className="reading-section">
-      <div>
-        <p className="section-label">03 / THE KNOWLEDGE</p>
-        <WordReveal text="Less guessing. More building." />
-        <Reveal as="p" delay={0.2}>The way in, the moving parts, and the contracts between them. Find the details that help you make something of your own.</Reveal>
-        <Reveal delay={0.3}><Terminal /></Reveal>
-      </div>
-      <div className="reading-links">
-        {rows.map((r, i) => (
-          <Reveal key={r.n} delay={i * 0.08}>
-            <Link className="reading-row" to={r.to}>
-              <span>{r.n}</span>
-              <div><h3>{r.title}</h3><p>{r.body}</p></div>
-              <span className="row-arrow" aria-hidden="true">↗</span>
-            </Link>
-          </Reveal>
-        ))}
-        <Reveal delay={0.3} className="principles">
-          <p className="section-label">HOW WE WORK</p>
-          <ul>
-            <li><b>Open source.</b> Built in the open, on GitHub.</li>
-            <li><b>No tracking.</b> This site sets no cookies and calls no APIs.</li>
-            <li><b>Honest docs.</b> Every guide links back to its upstream source.</li>
-          </ul>
-        </Reveal>
-      </div>
+      </Reveal>
     </section>
   );
 }
@@ -165,7 +121,7 @@ function Reading() {
 function Manifesto() {
   return (
     <section className="manifesto">
-      <div className="void-symbol" aria-hidden="true"><RingLogo size={70} spin /></div>
+      <div className="void-symbol" aria-hidden="true"><RingLogo size={70} /></div>
       <div>
         <WordReveal text="There’s room for your kind of strange." />
         <Reveal as="p" delay={0.25}>A mod that changes one thing. A loader that tries another way. A piece of infrastructure nobody has built yet. It starts somewhere.</Reveal>
@@ -181,14 +137,9 @@ export default function Home() {
   return (
     <>
       <div className="container"><Hero /></div>
-      <div className="scope-strip">
-        <Marquee items={['MODS', 'MODLOADERS', 'PROXIES', 'THE IN-BETWEEN']} note="A sandbox without an edge." />
-      </div>
       <div className="container">
         <ProjectsSection />
-        <Facts />
-        <Surfaces />
-        <Reading />
+        <DocsIndex />
         <Manifesto />
       </div>
     </>

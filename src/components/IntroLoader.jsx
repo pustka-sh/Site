@@ -33,7 +33,7 @@ export default function IntroLoader() {
           initial={{ clipPath: 'circle(150% at 50% 50%)' }}
           transition={{ duration: 0.75, ease: [0.76, 0, 0.24, 1] }}
         >
-          <motion.div initial={{ scale: 0.8, rotate: -40 }} animate={{ scale: 1, rotate: 0 }} transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}>
+          <motion.div initial={{ scale: 0.85 }} animate={{ scale: 1 }} transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}>
             <RingLogo size={120} draw />
           </motion.div>
           <motion.p initial={{ opacity: 0, letterSpacing: '0.6em' }} animate={{ opacity: 1, letterSpacing: '0.3em' }} transition={{ delay: 0.6, duration: 0.9 }}>

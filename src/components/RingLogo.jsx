@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 
 /**
  * The supplied pustka mark, drawn with the exact brand geometry so each arc can
- * be animated. `draw` strokes it in; `spin` slowly turns the ring.
+ * be animated. `draw` strokes it in. The mark is never rotated (brand rule).
  */
 const arcs = [
   { color: '#F4E9E4', rotate: -150 },
@@ -11,10 +11,10 @@ const arcs = [
   { color: '#A8161A', rotate: 90 },
 ];
 
-export default function RingLogo({ size = 42, draw = false, spin = false, glow = true, className = '' }) {
+export default function RingLogo({ size = 42, draw = false, glow = true, className = '' }) {
   const filterId = `ring-glow-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   return (
-    <svg className={`ring-logo ${spin ? 'spin' : ''} ${className}`} width={size} height={size} viewBox="0 0 360 360" aria-hidden="true">
+    <svg className={`ring-logo ${className}`} width={size} height={size} viewBox="0 0 360 360" aria-hidden="true">
       {glow && (
         <defs>
           <filter id={filterId} x="-30%" y="-30%" width="160%" height="160%">
@@ -23,6 +23,9 @@ export default function RingLogo({ size = 42, draw = false, spin = false, glow =
           </filter>
         </defs>
       )}
+      {/* Shown only in light mode: the brand mark always sits on Void. */}
+      <rect className="ring-backing" width="360" height="360" fill="#080404" />
+      <g className="ring-content">
       <g filter={glow ? `url(#${filterId})` : undefined}>
         <g className="ring-arcs">
           {arcs.map((arc, i) => (
@@ -42,6 +45,7 @@ export default function RingLogo({ size = 42, draw = false, spin = false, glow =
           animate={{ pathLength: 1, opacity: 1 }}
           transition={{ duration: 0.6, delay: draw ? 0.8 : 0, ease: [0.65, 0, 0.35, 1] }}
         />
+      </g>
       </g>
     </svg>
   );

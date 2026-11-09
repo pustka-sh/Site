@@ -1,10 +1,10 @@
 /* Syntax colours, tuned to the Redline palette in both themes. */
 :root {
-  --code-comment: #7d625c; --code-keyword: #ff6b5e; --code-string: #ffb000; --code-number: #f4a37a;
+  --code-comment: #a08680; --code-keyword: #ff6b5e; --code-string: #ffb000; --code-number: #f4a37a;
   --code-attr: #f4e9e4; --code-section: #ff2a2a; --code-built: #e8b7a9; --code-meta: #b98a80;
 }
 :root[data-theme=light] {
-  --code-comment: #94807a; --code-keyword: #c0221a; --code-string: #9a5a00; --code-number: #b04a1e;
+  --code-comment: #74605a; --code-keyword: #c0221a; --code-string: #9a5a00; --code-number: #b04a1e;
   --code-attr: #1c0e0c; --code-section: #d01616; --code-built: #7a3a2c; --code-meta: #8a6a62;
 }
 .hljs-comment, .hljs-quote { color: var(--code-comment); font-style: italic; }

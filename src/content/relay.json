@@ -12,27 +12,53 @@
    "toc": [
     [
      "ref-channels",
-     "Channels"
+     "Channels",
+     2
     ],
     [
      "ref-trust-model",
-     "Trust model"
+     "Trust model",
+     2
     ],
     [
      "ref-encoding",
-     "Encoding"
+     "Encoding",
+     2
     ],
     [
      "ref-sub-channels",
-     "Sub-channels"
+     "Sub-channels",
+     2
+    ],
+    [
+     "ref-requests-that-act",
+     "Requests that act",
+     3
+    ],
+    [
+     "ref-requests-that-reply",
+     "Requests that reply",
+     3
+    ],
+    [
+     "ref-reporting-load",
+     "Reporting load",
+     3
+    ],
+    [
+     "ref-cross-server-messaging",
+     "Cross-server messaging",
+     3
     ],
     [
      "ref-from-a-paper-plugin",
-     "From a Paper plugin"
+     "From a Paper plugin",
+     2
     ],
     [
      "ref-implementation-note",
-     "Implementation note"
+     "Implementation note",
+     2
     ]
    ],
    "text": "Server → proxy communication over plugin messages, the way BungeeCord has always done it. A plugin on a backend sends a plugin message through one of its own players; Relay intercepts it on the way past rather than letting it reach the client, acts on it, and replies the same way in reverse. Wire-compatible with BungeeCord. A plugin written against BungeeCord or Velocity works against Relay unchanged — same channel, same sub-channel names, same encoding. That is the point: your existing network plugins keep working, and anything written for Relay stays portable. Channels On the wire, Relay accepts bungeecord:main , the pre-1.13 name BungeeCord , and its own relay:main . From a Bukkit plugin, use the string BungeeCord . Not bungeecord:main — that looks more modern and silently does not work. Bukkit rewrites bungeecord:main to BungeeCord when recording what a connection has registered, but does not rewrite the argument to sendPluginMessage before checking that set, so the lookup misses and the message is dropped with no error anywhere. Every BungeeCord plugin uses the legacy string for this reason. It still travels as bungeecord:main on the wire; Bukkit converts it back on the way out. relay:main is unaffected and can be used either way. Enabled by backend-api = true in relay.toml (the default). Trust model Backends are trusted; clients are not. These requests are not permission-checked — a backend asking to move a player simply moves them. That is deliberate and matches BungeeCord: a backend already holds the forwarding secret and sits inside your network, so it is infrastructure rather than an untrusted peer. Two consequences worth being deliberate about: Backend ports must be unreachable from outside. Anyone who can open a socket to a backend can, with forwarding misconfigured, reach this API. API traffic is consumed, never relayed to the player. A client never sees proxy control traffic, and cannot inject it either — the interception only reads the backend direction. Contrast the client API , where every request is permission-checked because a modded client is attacker-controlled. Encoding Java s DataOutputStream format — writeUTF strings and big-endian primitives — not Minecraft s VarInt encoding. This is BungeeCord s choice and matching it is what makes existing plugins work. Every message starts with a sub-channel name as a UTF string. Sub-channels Anywhere a server name is accepted, a group name works too, and Relay resolves it the same way /server does. Existing BungeeCord plugins therefore reach groups without a line of change: the operator writes a group name wherever they used to write a server name. GetServers deliberately keeps its BungeeCord meaning — the concrete backends — and GetGroups is asked separately. Requests that act Sub-channel Fields Effect Connect server | group Moves the sending player ConnectOther player, server | group Moves a named player ServerStats see below Reports this backend s load (Relay only) Message / MessageRaw player | ALL , json Sends chat KickPlayer player, reason json Disconnects a player Requests that reply The reply arrives asynchronously on the same channel, beginning with the sub-channel name. Sub-channel Fields Reply GetServer — server name GetServers — comma-separated names GetGroups — comma-separated group names (Relay only) PlayerCount server | group | ALL server, count (int) PlayerList server | group | ALL server, comma-separated names IP — address, port (int) UUID — undashed uuid UUIDOther player player, undashed uuid Reporting load ServerStats is the one message the proxy never asks for. It cannot: a plugin message needs a player connection to travel on, so a poll would only arrive when a player was already there — and the reply could only leave under the same condition. The backend pushes instead, on a timer. Fields, in order: tps1m , tps5m , tps15m , msptMean (doubles) , usedMemory , maxMemory (longs, bytes) , cpuLoad (double, fraction of one core) , players (int) , uptimeSeconds (long) , version (string) . Anything unavailable is -1 . Field order is the contract. New fields go on the end, so a proxy a version behind reads what it understands and stops rather than misreading everything after the point where the two disagree. Sent on relay:main , not the BungeeCord channel — nothing about it is BungeeCord compatible, and a BungeeCord proxy would log an unknown sub-channel every interval. An empty backend cannot report. Its last figures stop being replaced rather than going to zero, so the proxy stamps each report with its arrival time and the dashboard greys them once stale. The Relay plugin does this for you; stats-interval-seconds: 0 in its config turns it off. Cross-server messaging Sub-channel Fields Forward server | group | ALL , subchannel, length (short) , payload ForwardToPlayer player, subchannel, length (short) , payload The receiving server gets a plugin message on the same channel whose first field is your chosen sub-channel name. This is the raw primitive; for typed packets with ids and a registry both ends are checked against, see server-packets.md , which is built on exactly these two messages. This only reaches servers that currently have a player on them — a plugin message needs a player connection to travel on. BungeeCord has the same limitation; Relay logs at debug when a forward had nowhere to go, which is worth knowing because it otherwise looks like a dropped message. From a Paper plugin The raw form, which is what an existing BungeeCord plugin already does: java Copy ByteArrayOutputStream bytes = new ByteArrayOutputStream (); DataOutputStream out = new DataOutputStream (bytes); out.writeUTF( Connect ); out.writeUTF( survival ); player.sendPluginMessage( this , BungeeCord , bytes.toByteArray()); Register the channels in onEnable : java Copy getServer().getMessenger().registerOutgoingPluginChannel( this , BungeeCord ); getServer().getMessenger().registerIncomingPluginChannel( this , BungeeCord , listener); RelayApi , shipped in the Relay plugin, wraps the common operations if you would rather not hand-roll the streams: java Copy RelayApi relay = new RelayApi ( this ); relay.connect(player, survival ); relay.requestPlayerCount(player, ALL ); relay.forward(player, ALL , MyPluginChannel , payload); Implementation note Relay recognises these messages by peeking at raw frames , not by registering a packet decoder. Registering one would mean a wrong packet id makes Relay misread ordinary backend traffic and kill the connection — the exact failure mode that cost days of debugging once already. Peeking degrades instead: anything that does not parse cleanly as a plugin message on an API channel is forwarded untouched, so the worst case is that this feature quietly does nothing rather than breaking a session. The same rule applies to the one other thing Relay reads in this direction, a backend s own kick — see BackendKickHandler . Everything else travelling backend → client is forwarded as an opaque frame and never parsed at all."
@@ -46,31 +72,48 @@
    "toc": [
     [
      "ref-design-properties",
-     "Design properties"
+     "Design properties",
+     2
     ],
     [
      "ref-limits",
-     "Limits"
+     "Limits",
+     2
     ],
     [
      "ref-wire-format",
-     "Wire format"
+     "Wire format",
+     2
+    ],
+    [
+     "ref-serverbound-client--proxy",
+     "Serverbound (client → proxy)",
+     3
+    ],
+    [
+     "ref-clientbound-proxy--client",
+     "Clientbound (proxy → client)",
+     3
     ],
     [
      "ref-example-exchange",
-     "Example exchange"
+     "Example exchange",
+     2
     ],
     [
      "ref-what-this-makes-possible",
-     "What this makes possible"
+     "What this makes possible",
+     2
     ],
     [
      "ref-building-the-mod",
-     "Building the mod"
+     "Building the mod",
+     2
     ],
     [
      "ref-versioning",
-     "Versioning"
+     "Versioning",
+     2
     ]
    ],
    "text": "A protocol for a client-side mod to talk to Relay directly, over the plugin-message channel relay:api_v1 . This is the piece Velocity and BungeeCord leave to you. They give plugins a raw plugin-messaging pipe; a client mod author has to invent a protocol, a versioning scheme and a permission story from scratch, per network. Relay makes it a first-class surface with those three problems already solved. Design properties Invisible to vanilla. Relay never sends on this channel unsolicited. A vanilla client never sends on it either, so an unmodded player is completely unaffected. Everything starts with the client saying hello. Version negotiated. Both sides state a protocol version and the lower is used, so a mod and a proxy can be upgraded independently. Old mods keep working against new proxies. Never trusted. This is the important one. A modded client is an attacker-controlled peer — anyone can write a mod that claims anything. The welcome message tells a client which capabilities it may use so a mod can grey out buttons, but that list is a convenience for rendering, never the security boundary. Every request is re-checked against the same permission nodes that guard the in-game commands, at the moment it is acted on. A modded client can do nothing a player could not do by typing /server . Proxy-owned. The channel is claimed by Relay and never relayed to a backend. Backends have no idea what these messages mean, and forwarding them would let a client reach backend plugins over a channel they never opted into. Limits Channel relay:api_v1 Protocol version 1 Max message size 32 KB (larger is refused unread) Rate limit 20 messages/second, then RATE_LIMITED Config client-api = true in relay.toml Malformed input is answered with an error and the session continues. Only two things drop the connection: a message over the size cap, and input that cannot be framed at all. Wire format All messages are a VarInt type followed by a body. Strings are Minecraft s standard VarInt-length-prefixed UTF-8. Serverbound (client → proxy) 0x00 Hello — must be first; anything before it is refused. Field Type Client protocol version VarInt Mod name String (≤64, logging only) 0x01 List Servers — no body. Requires relay.command.glist . 0x02 Request Switch Field Type Server name String (≤64) Requires relay.command.server . Clientbound (proxy → client) 0x00 Welcome Field Type Negotiated version VarInt Proxy identity String Capability count VarInt Capabilities String × count Capabilities are server_list and switch , filtered to what this player may actually do. 0x01 Server List Field Type Count VarInt — name String — player count VarInt — is current Boolean 0x02 Switch Status Field Type Server name String Status VarInt — 0 connecting, 1 connected, 2 failed Detail String (failure reason, else empty) 0x03 Error Field Type Code VarInt Codes: 0 no permission, 1 unknown server, 2 switch in progress, 3 already connected, 4 rate limited, 5 malformed. Example exchange text Copy client → 0x00 Hello { version: 1, mod: RelayClient } proxy → 0x00 Welcome { version: 1, Relay 0.1.0 , [ server_list , switch ] } client → 0x01 ListServers { } proxy → 0x01 ServerList { lobby: 12 (current), survival: 47, creative: 3 } client → 0x02 RequestSwitch{ survival } proxy → 0x02 SwitchStatus { survival , connecting } proxy → 0x02 SwitchStatus { survival , connected } What this makes possible The two capabilities implemented are the foundation. What they enable, and what could be built on the same channel: A real server browser. A GUI with live player counts and current-server highlight, instead of /server chat spam. Already possible with what is here. Switch progress. The client shows Connecting to survival… and a real outcome instead of a frozen screen. Already possible with what is here. Queue position in the HUD. A number that updates in place, rather than a chat message every five seconds. Needs a queue capability plus a queue system. Cross-server presence. A friends list showing which backend people are on. Relay already knows this — PlayerRegistry has it — it needs a capability and a privacy decision about who may see whom. Per-backend latency. Ping measured from the proxy , which is the number that actually predicts play quality, shown in the browser. Transfer-surviving client state. A mod keeping its own state across a switch, driven by the switch status messages. Building the mod The mod itself is a separate project — it needs a Fabric or NeoForge toolchain and cannot live in this repository. What it needs to do: Register relay:api_v1 as a receiving channel. Send Hello on join. Configuration state works too, but play state is simpler. If a Welcome arrives, the player is on a Relay proxy — enable the UI. If nothing arrives, they are not; stay silent. Render only the advertised capabilities. Expect an error for anything, including actions that were advertised. Permissions can change mid-session. Point 3 is the graceful-degradation story: the same mod works on any server, and simply does nothing where the proxy is not Relay. Versioning The channel name carries v1 . A backwards-compatible change (new message types, new capabilities) bumps PROTOCOL_VERSION and keeps the channel. A breaking change gets a new channel name, so an old mod and a new proxy talk past each other harmlessly instead of misinterpreting each other s bytes."
@@ -84,35 +127,48 @@
    "toc": [
     [
      "ref-a-packet",
-     "A packet"
+     "A packet",
+     2
     ],
     [
      "ref-ids-and-the-thing-that-makes-them-safe",
-     "Ids, and the thing that makes them safe"
+     "Ids, and the thing that makes them safe",
+     2
     ],
     [
      "ref-addressing",
-     "Addressing"
+     "Addressing",
+     2
+    ],
+    [
+     "ref-what-the-return-value-means",
+     "What the return value means",
+     3
     ],
     [
      "ref-the-one-real-limitation",
-     "The one real limitation"
+     "The one real limitation",
+     2
     ],
     [
      "ref-what-it-costs",
-     "What it costs"
+     "What it costs",
+     2
     ],
     [
      "ref-checking-it-on-a-live-network",
-     "Checking it on a live network"
+     "Checking it on a live network",
+     2
     ],
     [
      "ref-a-worked-example",
-     "A worked example"
+     "A worked example",
+     2
     ],
     [
      "ref-client-mods",
-     "Client mods"
+     "Client mods",
+     2
     ]
    ],
    "text": "Forward (see backend-api.md ) has always been able to carry bytes from one backend to another through the proxy: a server name and an opaque payload. What it leaves every plugin to invent is the layer above — deciding what the bytes mean, keeping the two ends agreeing on it, and getting a message to the code that handles it. PacketFactory , in the Relay plugin, is that layer. java Copy PacketFactory packets = PacketFactory.named( parties ) .register(PartyInvite.class, PartyInvite:: new ) .register(PartyDisband.class, PartyDisband:: new ) .build( this ); packets.on(PartyInvite.class, (from, invite) - getLogger().info(invite.to + was invited, from + from)); packets.send( survival , new PartyInvite (player.getUniqueId(), Notch , 120 )); Both servers build the factory from the same code — normally a shared module both plugins depend on, or the same plugin jar deployed to both. A packet java Copy public final class PartyInvite implements RelayPacket { public UUID from; public String to; public int expiresInSeconds; public PartyInvite () {} // the receiving side reads into a blank one public PartyInvite (UUID from, String to, int expiresInSeconds) { ... } @Override public void write (PacketBuffer out) { out.writeUuid(from); out.writeString(to); out.writeVarInt(expiresInSeconds); } @Override public void read (PacketBuffer in) { from = in.readUuid(); to = in.readString(); expiresInSeconds = in.readVarInt(); } } write and read must agree, field for field, in order. Nothing enforces it, and a mismatch does not fail where the mistake is — it fails at whatever field happens to be next, on the other server. The factory does notice when a read stops short of the bytes that arrived and warns about it, which catches the common half-finished version bump before it starts costing data. PacketBuffer has writeString / readString (UTF-8, length-prefixed, no 64KB ceiling), writeVarInt , writeUuid , writeEnum (by constant name, so reordering an enum does not reroute data), writeBytes , writeStrings , and the primitives. Ids, and the thing that makes them safe A packet s id is its position in the registration list. That is what lets both ends agree without anyone writing a number down. It is also the obvious way to get this catastrophically wrong. Two servers that register in different orders each decode the other s packets into the wrong class and read one field s bytes as another s — a party invite arriving as a shop sync, with plausible-looking garbage in it, and nothing anywhere saying so. So every message carries a fingerprint of the registry that produced it: the factory name and every registered class name, in order. A packet whose fingerprint does not match the receiver s is dropped and reported, naming what this side has registered: text Copy [Parties] Ignoring a parties packet from a registry fingerprinted -1580312955; this one is 884471301. The two servers have registered different packets, or registered them in a different order, and decoding it would read one packet as another. Here it is 0=PartyInvite, 1=PartyDisband. Reported once per mismatching registry, not once per packet. packets.fingerprint() is worth logging on startup: two servers printing different numbers is the whole explanation for messages that vanish. Adding a packet is safe; inserting one is not. Register new types at the end and a server a version behind still agrees about the old ones — until you deploy, when the fingerprints differ and everything stops rather than being misread. Deploy both sides. Addressing send( survival-02 , packet) one backend send( survival , packet) every member of a group — which member a player is on is the proxy s business sendToPlayer( Notch , packet) whichever server that player is on broadcast(packet) every server with somebody on it, this one excepted A group that contains this server includes it: the packet goes round and arrives back here too. That is usually what tell the survival pool should mean, but write the handler knowing it. What the return value means false is this server could not send it — nobody is online here to carry it, the packet would not encode, or it was over the size limit. true is not a delivery receipt. The proxy decides where the packet goes after the call returns, and a name matching no backend — or one with nobody on it — is dropped there with nothing to report back. The proxy logs that at debug; the sender sees a clean true . Plugin messaging has no acknowledgement to build one out of, so a protocol that needs to know its message arrived has to say so with a packet of its own. The Ping / Pong pair in PacketProbe is the smallest example of doing that. The one real limitation A plugin message travels on a player s connection. A server with nobody on it cannot be reached, and cannot send. This is inherited from how plugin messaging works and BungeeCord has it too. The two directions are handled differently because they mean different things: Sending to an empty server is a silent drop, at the proxy, after the call has already returned true — see above. The proxy logs it at debug. Sending from a server that has not yet learned its own name holds the packet, up to 64 of them, and sends them when it does. That state is almost always nobody has joined yet , because this server learns its name by asking the proxy through a player — the same player any packet would have travelled on. A plugin sending during startup is early rather than wrong. Past 64 held, the oldest are refused with a warning rather than accumulating on a server that may never get a player. A packet may be at most 32KB encoded, matching the proxy s forwarding limit. Larger is refused on the sending side, where the log names the packet: the length travels as an unsigned short, so an oversized one would not bounce, it would be read with a wrapped length and take the rest of the message stream with it. What it costs Nothing on the proxy. PacketFactory is built entirely on Forward and ForwardToPlayer as they already exist, so a network running this needs no Relay version in particular and the proxy never parses a byte of your payload. Packets travel under the sub-channel RelayPacket: factory name , which is what keeps two plugins on one server from reading each other s mail. Checking it on a live network The Relay plugin registers a factory of its own, so a network can prove the whole path without writing anything: text Copy /relay packet survival-00 hello Also runnable from the console or over RCON, because a factory picks its own carrier and does not need the sender to be a player. The sending server logs the registry fingerprint and the round trip; the receiving server logs the ping as it arrives: text Copy [lobby] Packet probe: pinging survival-00 (registry -1564738630, sub-channel RelayPacket:relay-probe) [survival-00] Packet probe: ping from lobby (hello); replying [lobby] Packet probe: survival-00 answered in 10ms (hello) PacketProbe in the plugin source is about twenty lines and is the worked example: it is everything a plugin has to do to use this. A worked example examples/block-mirror is the smallest useful thing built on this: place a block on one server and it appears on the other, break it and it breaks there too. About forty interesting lines, one packet, and a README covering the four decisions in it that matter more than the line count suggests. Client mods This is server ↔ server. Reaching a modded client is the client API , which is a different trust model — a client is attacker-controlled, so every request there is permission-checked, where backends are trusted infrastructure. A factory whose packets could arrive from a player s computer would quietly hand that trust to whoever wrote the mod."
@@ -126,51 +182,78 @@
    "toc": [
     [
      "ref-the-bug-this-table-caused",
-     "The bug this table caused"
+     "The bug this table caused",
+     2
     ],
     [
      "ref-why-a-wrong-id-degrades-instead-of-corrupting",
-     "Why a wrong id degrades instead of corrupting"
+     "Why a wrong id degrades instead of corrupting",
+     2
     ],
     [
      "ref-fixing-an-id-without-a-rebuild",
-     "Fixing an id without a rebuild"
+     "Fixing an id without a rebuild",
+     2
     ],
     [
      "ref-handshake",
-     "Handshake"
+     "Handshake",
+     2
     ],
     [
      "ref-status",
-     "Status"
+     "Status",
+     2
     ],
     [
      "ref-login",
-     "Login"
+     "Login",
+     2
     ],
     [
      "ref-configuration",
-     "Configuration"
+     "Configuration",
+     2
     ],
     [
      "ref-play",
-     "Play"
+     "Play",
+     2
+    ],
+    [
+     "ref-serverbound-decoded",
+     "Serverbound (decoded)",
+     3
+    ],
+    [
+     "ref-clientbound-write-only--never-decoded",
+     "Clientbound (write-only — never decoded)",
+     3
     ],
     [
      "ref-where-these-numbers-come-from",
-     "Where these numbers come from"
+     "Where these numbers come from",
+     2
     ],
     [
      "ref-the-second-table-what-the-fake-client-speaks",
-     "The second table: what the fake client speaks"
+     "The second table: what the fake client speaks",
+     2
+    ],
+    [
+     "ref-filling-in-12031206",
+     "Filling in 1.20.3–1.20.6",
+     3
     ],
     [
      "ref-adding-a-minecraft-version",
-     "Adding a Minecraft version"
+     "Adding a Minecraft version",
+     2
     ],
     [
      "ref-what-relay-deliberately-does-not-decode",
-     "What Relay deliberately does not decode"
+     "What Relay deliberately does not decode",
+     2
     ]
    ],
    "text": "Relay decodes about twenty packets out of the several hundred Minecraft defines. Everything else is relayed as an opaque frame. This document lists the ids Relay actually depends on, so adding a Minecraft version means checking this page rather than auditing a protocol dump. Seven of the nine supported versions are now verified against first-party data , and two are not. Protocol 767–772 come from Mojang s own generated packet report (see Where these numbers come from ); 764 was confirmed against a live Paper 1.20.2 instance, either its own packet log ( net.minecraft.network at DEBUG prints every id it handles) or Relay s packet trail. Rows marked ✓ are that live check; † marks the two versions with neither. This page previously said the rest was inference and should be verified. When it finally was, 26 of 72 checked ids were wrong — see the note at the end of the Play section. Do not extend a row by pattern; generate the report. The bug this table caused A frame s length prefix, not its id, once closed connections at random. The framing decoder treated a leading 0xFE as a pre-1.7 legacy ping and closed the channel — but 0xFE is also the first byte of the length VarInt for any frame of 254, 382, 510 … bytes, so roughly one frame in 128 was mistaken for a ping. A busy connection hit one within a second, with no exception and no disconnect packet, leaving each end convinced the other had hung up. The check now runs only on the first byte of a player connection. PipelineCodecTest guards it. The source of truth is StateRegistry.java . Why a wrong id degrades instead of corrupting The registrations are arranged so that a mistake here has a bounded, visible blast radius: Area If the id is wrong Severity Clientbound play Registered write-only. Relay never decodes backend→client play traffic, so gameplay is unaffected. Only Relay s own messages and the switch prompt break. Contained Serverbound play Three packets are decoded: the unsigned chat command, the configuration acknowledgement, and the client-API plugin message. A wrong chat id makes /server fall through to the backend as unknown; a wrong configuration id breaks switching. Mixed Configuration A wrong id breaks joining. Loud and immediate. Blocking Handshake / status / login Stable across the whole supported range. Very unlikely to move The asymmetry is deliberate. The direction carrying 99% of the bytes — backend to client during play — has no id dependency at all. Fixing an id without a rebuild Add an override to relay.toml . It is applied at startup, before the listener opens. toml Copy [protocol.overrides] play.clientbound.start_configuration.773 = 0 x70 play.serverbound.chat_command.773 = 0 x07 A hypothetical future version, deliberately — the ids in this file are now generated rather than guessed, so an override is for the gap between a Minecraft release and a Relay one, not for patching around a suspect table. The key is state.direction.packet.protocolVersion . Relay logs a warning for each override in effect, so an emergency fix does not quietly become permanent. Handshake Direction Packet ID Versions serverbound handshake 0x00 all Status Direction Packet ID Versions serverbound status_request 0x00 all serverbound status_ping 0x01 all clientbound status_response 0x00 all clientbound status_pong 0x01 all Login Stable across the supported range. 1.20.5 added cookie packets after the ids Relay uses, so nothing shifted. Direction Packet ID Versions serverbound login_start 0x00 ✓ all serverbound encryption_response 0x01 all serverbound login_plugin_response 0x02 ✓ all serverbound login_acknowledged 0x03 ✓ 1.20.2+ clientbound login_disconnect 0x00 all clientbound encryption_request 0x01 all clientbound login_success 0x02 ✓ all clientbound set_compression 0x03 ✓ all clientbound login_plugin_request 0x04 ✓ all Field-level version differences, handled in the packet classes rather than here: encryption_request gained a trailing shouldAuthenticate boolean in 1.20.5 . login_success gained strictErrorHandling in 1.20.5 and lost it again in 1.21.2 . It is bracketed, not gated on a lower bound. login_start carries an unconditional UUID from 1.20.2, which is Relay s floor. Configuration 1.20.5 inserted cookie packets at id 0x00 in both directions, shifting everything after by one. Direction Packet 1.20.2 – 1.20.4 1.20.5+ serverbound plugin_message 0x01 ✓ 0x02 serverbound finish_configuration_ack 0x02 ✓ 0x03 clientbound plugin_message 0x00 ✓ 0x01 clientbound disconnect (write-only) 0x01 0x02 clientbound finish_configuration 0x02 ✓ 0x03 Play The volatile section. These shift whenever Mojang inserts a packet mid-list. Values below are per protocol version. † marks the two versions with no packet report, where the id is bracketed by verified neighbours rather than proven. Serverbound (decoded) Packet 764 765† 766† 767 768 769 770 771 772 chat_command 0x04 ✓ 0x04 0x04 0x04 0x05 0x05 0x05 0x06 0x06 configuration_acknowledged 0x0B ✓ 0x0B 0x0C 0x0C 0x0E 0x0E 0x0E 0x0F 0x0F plugin_message 0x0F ✓ 0x0F 0x12 0x12 0x14 0x14 0x14 0x15 0x15 Notes on what moved and why: 1.20.5 split the command packet into unsigned Chat Command and Signed Chat Command . Relay registers only the unsigned form; signed commands pass through untouched, since rewriting one would invalidate its signature. On 1.20.2/1.20.3 there is a single signed packet at 0x04 , and Relay reads only its leading command string, keeping the remainder as opaque bytes. plugin_message does not track configuration_acknowledged s shifts, though this page claimed for months that it did. It is four past it at 1.20.2 and six past it from 1.21 — packets were inserted between the two. That assumption made this row wrong at every version above 1.20.4. Clientbound (write-only — never decoded) Packet 764 765† 766† 767 768 769 770 771 772 disconnect 0x1B ✓ 0x1B 0x1D 0x1D 0x1D 0x1D 0x1C 0x1C 0x1C system_chat 0x67 ✓ 0x69 0x6C 0x6C 0x73 0x73 0x72 0x72 0x72 start_configuration 0x65 ✓ 0x67 0x69 0x69 0x70 0x70 0x6F 0x6F 0x6F plugin_message 0x18 0x19 0x19 0x19 0x19 0x19 0x18 0x18 0x18 Note that system_chat and start_configuration cross over at 1.21.5: the +2 offset relationship that holds at 1.20.2 does not survive the range, and assuming it did is what made both rows wrong at the top end. Where these numbers come from Every id from protocol 767 up is read out of Mojang s own packet report , which the server jar generates on demand: text Copy java -DbundlerMainClass=net.minecraft.data.Main -jar server .jar --reports That writes generated/reports/packets.json — every packet, every state, every direction, with its id, from the same source that defines them. No client, no network, no community table, and nothing to drift out of date. Trimmed copies live in proxy/src/test/resources/protocol/packets- protocol .json , each recording the Paper build it came from. MojangPacketReportTest holds StateRegistry against them and FakeClientProtocolTest holds the fake client s table against them, one dynamic test per packet per version. 1.20.2 (764) predates the report provider and rests on a live Paper debug log instead. 1.20.3–1.20.6 (765, 766) have neither: Mojang added the provider in 1.21, and no 1.20.x jar can produce one. Their rows are bracketed by verified neighbours — better than extrapolation, still not proof, and marked † above. This check found 26 wrong ids on the day it was written , out of 72. Every version above 1.20.4 was affected. start_configuration and configuration_acknowledged were both wrong at 1.21.6+, which means server switching could not have worked there at all; chat_command was wrong at the same versions, so /server would never have reached Relay to begin with. plugin_message was wrong in both directions across most of the range, breaking the backend API. None of it was carelessness — the values were derived by exactly the reasoning this page described, and that reasoning was wrong. The lesson is not be more careful with inference ; it is that a generated first-party source existed the whole time. Every 1.20.2 id above is now confirmed, and the last two were confirmed by a real client rather than by reading a log. A live 1.20.2 client switched servers with /server , which can only happen if start_configuration ( 0x65 ) is the packet the client accepts and configuration_acknowledged ( 0x0B ) is the reply Relay recognises. A wrong value for either leaves the player stuck on the old backend. disconnect was confirmed the same way, and it is the one entry in this table Relay now reads rather than only writes. A backend s kick is claimed instead of relayed, so that a planned restart moves players rather than ejecting them and a live 1.20.2 Paper server typing stop produced exactly that, which it could not have done had the id been wrong. See BackendKickHandler for how a wrong id degrades: the frame is peeked at rather than decoded, rejected unless its body could be a text component, and otherwise relayed untouched as before. Two more, from driving a fake client against a live Paper 1.20.2 server with packet logging on. Relay decodes neither, but anything speaking the protocol by hand needs both: Clientbound keep-alive is 0x24 ( OUT: [play:36] ClientboundKeepAlivePacket ). Clientbound Synchronize Player Position is 0x3E ( OUT: [play:62] PacketPlayOutPosition ), answered with serverbound 0x00 , Confirm Teleportation. The second is the one worth knowing about: a server does not begin its keep-alive cycle until the join teleport is confirmed. A client that never confirms is held unspawned, receives no keep-alives at all, and is eventually dropped — which looks exactly like a keep-alive problem and is not one. And a warning about identifying packets by size. A keep-alive carries a bare long, so an eight-byte body seems diagnostic; it is not. Entity metadata ( 0x54 ) and relative entity movement ( 0x2c ) are frequently eight bytes too, and answering one of those as a keep-alive is worse than ignoring it — a server treats a response it never asked for as a timeout and kicks immediately. One more id worth recording even though Relay does not decode it: Paper s log shows IN: [play:20] ServerboundKeepAlivePacket , so Keep Alive is 0x14 at 1.20.2, not 0x12 as several community tables have it. That matters as a check on the ones above: everything at or below 0x0F is unshifted relative to those tables, and the drift starts after it. chat_command , configuration_acknowledged and plugin_message all sit below the shift, which is why they were right. Two bugs were found here on 2026-07-23, both from a real server log. system_chat was 0x64 at 1.20.2 when Paper s own packet log proves it is 0x67 ( OUT: [play:103] ClientboundSystemChatPacket ). Worse, system_chat and start_configuration had been given identical ids at 1.20.3 and 1.20.5 — impossible, and silent, because both are write-only. A player would have received a chat message where a state change belonged. StateRegistry now runs verifyNoDuplicateIds() at class initialisation, so any two packets claiming one id fail at startup rather than in front of a player. The later system_chat values keep the +2 offset from start_configuration that holds at 1.20.2; verify them before trusting them. The second table: what the fake client speaks FakePlayers carries its own id table ( FakePlayers.IDS ), separate from StateRegistry . That is deliberate. A fake client that read its ids out of the proxy it is testing would agree with that proxy by construction — if Relay s table were wrong for some version, the tool would speak the same wrong ids and every fake player would connect happily, proving nothing. Both tables now answer to the packet report instead of to each other, which is stronger: agreeing with each other would only prove they were copied from the same place. MojangPacketReportTest checks StateRegistry ; FakeClientProtocolTest checks the fake client, including five ids Relay has no opinion about at all — it forwards these as opaque frames and never decodes them, so nothing else in the project would notice them moving: Packet 764 767 768–769 770 771–772 Why the tool needs it clientbound keep-alive 0x24 0x26 0x27 0x26 0x26 Answering it is what keeps a fake player alive serverbound keep-alive 0x14 0x18 0x1A 0x1A 0x1B The reply clientbound Synchronize Player Position 0x3E 0x40 0x42 0x41 0x41 The join teleport serverbound Confirm Teleportation 0x00 0x00 0x00 0x00 0x00 Without it the server never starts sending keep-alives serverbound Client Information (config) 0x00 0x00 0x00 0x00 0x00 Paper drops a player it knows nothing about Every version Relay supports is driveable except 1.20.3–1.20.6 , which have no packet report. Those are refused with an explanation rather than guessed at: text Copy $ py relay.py fake --protocol 765 No verified packet ids for protocol 765 (1.20.3-1.20.4). The ids almost certainly shift by the same amounts as the rest of this page, and filling them in from that pattern would take a minute. It is not done, because a plausible-but-wrong id produces a tool that reports a proxy bug which does not exist — the one failure mode a test tool must not have. An absent version says unverified out loud; a guessed one says nothing at all. The 26 wrong ids this page used to carry are what that looks like when nobody notices. Filling in 1.20.3–1.20.6 These are the only versions left, and they need the older method, since no 1.20.x jar can generate a report: Run a backend of that version under py relay.py paper-debug name , which writes Paper s log4j2 config so net.minecraft.network logs every packet id it handles. Join with a real client of that version and switch servers with /server . Read the ids out of the log: OUT: [play:N] ClientboundKeepAlivePacket and friends. The bracketed number is decimal. Add the row to FakePlayers.IDS and correct StateRegistry , then update the † markers above. Adding a Minecraft version Add the constant to ProtocolVersion with its protocol number. Download that version s server jar and generate its report: java -DbundlerMainClass=net.minecraft.data.Main -jar server .jar --reports . Trim generated/reports/packets.json to the packets Relay uses and save it as proxy/src/test/resources/protocol/packets- protocol .json , recording the build it came from in _source . Add the protocol number to VERIFIED in MojangPacketReportTest and run it. It now tells you exactly which ids moved, one failure per packet. Add a map(newId, NEW_VERSION) entry for each — mappings apply from their version until the next one supersedes them. Re-run until green. Add the row to FakePlayers.IDS too, so the load tool can drive the new version; FakeClientProtocolTest checks it against the same report. StateRegistryTest.everyRegisteredPacketHasAnIdAtEveryVersion catches anything with no mapping at all, and verifyNoDuplicateIds() runs at class initialisation. Finally, verify against a real client: join, run /server , switch backends, and confirm chunks load on the far side. The report proves the ids; only a client proves the proxy. Do not skip to step 5 by reading the pattern off the table. That is how the previous 26 errors got in. What Relay deliberately does not decode Not an oversight — this is the containment strategy: Registry data, tags, feature flags, resource packs — forwarded as opaque configuration frames. Join Game, Respawn, chunk data, entity packets — never parsed. The client goes through a full configuration cycle on every switch, so Relay does not need to rewrite dimension or entity ids the way pre-1.20.2 proxies did. Signed chat and signed commands — forwarded byte for byte. Keep-alives — forwarded. Each side answers its own peer s, which is correct: a backend stall should surface as a backend timeout."
@@ -186,19 +269,23 @@
    "toc": [
     [
      "ref-status",
-     "Status"
+     "Status",
+     2
     ],
     [
      "ref-what-works",
-     "What works"
+     "What works",
+     2
     ],
     [
      "ref-before-you-trust-it",
-     "Before you trust it"
+     "Before you trust it",
+     2
     ],
     [
      "ref-design-notes",
-     "Design notes"
+     "Design notes",
+     2
     ]
    ],
    "text": "Status Phase Scope State 1. MVP Protocol layer, status/login/play relay, config, /server , forwarding modes Working — a real client joins, plays, and switches servers, verified on 1.20.2, 1.21.4 and 1.21.8 2. Dashboard Javalin backend, WebSocket live data, local auth Working — topology graph, per-player route tracing, traffic metrics, live console, sign-in with roles, and drain/send/evacuate/kick with an audit log 3. Plugins Annotation + Guice loader, event bus Not started 4. Hardening RBAC, Pelican integration, Prometheus, config editor Permission nodes exist; the rest not started 5. Cutover Run beside Velocity, migrate Not started A vanilla 1.20.2 client has joined a Paper backend through Relay in online mode, with modern forwarding, played normally, and moved to a second backend with /server . What has been exercised against real software is the join path — handshake, status, encryption, Mojang authentication, modern forwarding, configuration, sustained play traffic in both directions — and the switch path, including the backend-registered commands that reach the proxy by plugin message. See Before you trust it for what has not. What works Protocol : Minecraft 1.20.2 – 1.21.8 (protocol 764–772) Status : server list ping answered from proxy state, MiniMessage MOTD, player sample Login : online mode with Mojang session auth, offline mode, encryption, compression Forwarding : modern (Velocity-compatible, HMAC signed), legacy (BungeeCord), none Switching : /server and API-driven, via the 1.20.2+ configuration-phase handover Routing : ordered fallback list, forced hosts per virtual hostname Groups : survival-01 and survival-02 are a group called survival with no config at all, balanced by fewest players, round robin, random, priority order, configured weight, or what the backends say about their own load — forty players in a quiet lobby and forty in a redstone farm are not the same load, and resource-aware is the strategy that knows the difference Health checks : every backend status-pinged on an interval, so a dead one leaves routing before a player is sent to it — with hysteresis, so one dropped packet does not empty a server Backend load : TPS, MSPT, heap and CPU pushed by the Relay plugin, because a server deep in a GC spiral still answers status pings perfectly well — and with balance = resource-aware , routed on rather than merely displayed Resilience : a backend that dies — or kicks everyone on the way down, as a planned restart does — moves its players to the next server in the try list rather than off the network, so restarting one server is not an outage Commands : /server , /glist , /find , /send , /drain , group-aware, with permission nodes Draining : take a backend out of rotation before restarting it, without moving anyone already on it — Relay announces the moment it empties Backend API : BungeeCord-compatible plugin messaging, so existing network plugins work unchanged — see docs/backend-api.md Server-to-server packets : typed messages between backends, with ids assigned by a shared factory and a fingerprint that refuses a registry the other side does not agree with, rather than decoding one packet as another — see docs/server-packets.md , with a worked example in examples/block-mirror Client API : a plugin-message protocol for client-side mods — see docs/client-api.md Operations : backpressure both directions, bounded buffers, graceful shutdown, and a half-close when detaching a backend, so switching a player does not make its old server log a connection reset Dashboard : a live page plus REST and a WebSocket, off by default — topology map, per-player route tracing, metrics, live console, sign-in with roles, and drain/send/kick with an audit log — see Dashboard API Before you trust it Joining works. These are the gaps between that and running a network on it. Switching is timing-sensitive, and one window is now closed. A client enters configuration state the moment it sends its acknowledgement, which is a network round trip before Relay can know. Play packets delivered in that window are decoded against the wrong state and kill the connection with a decoder exception. Relay now stops forwarding from the old backend when the request goes out rather than when the reply arrives. Only 1.20.2 has been exercised for real. Every id Relay uses at 1.20.2 is now confirmed — handshake, status, login and configuration against a live Paper server s own packet log, the serverbound play ids from live traffic, and the two switch ids by a real client completing a switch. Every other version in the supported range is still inference. See docs/protocol-ids.md — the failure modes are deliberately bounded, and any id can be corrected from relay.toml without a rebuild. A rescued player rejoins from scratch. Relay moves connections, not game state (spec 5.4), so someone whose server died lands in the lobby at its spawn — not where they were, and with whatever inventory that backend last saved. Recovering more than the connection is a backend-database problem. Single proxy, no persistence. No bans, whitelist or session history — spec §6.3 s SQLite storage is phase 2, along with the dashboard. Clustering is a non-goal in §2. Plugins run unsandboxed once phase 3 lands, as §5.5 sets out. Nothing to worry about yet, since there is no plugin loader. Design notes Three decisions worth knowing, all of them narrowing scope on purpose: 1.20.2 is the floor. That is where the configuration phase was introduced. Every version at or above it shares one connection model, so server switching has exactly one implementation instead of two. Supporting anything older would mean carrying the pre-configuration fake respawn dance forever — the scope trap spec §11 opens with. Only registered packets are parsed. Everything else is forwarded as an opaque frame, never copied or allocated for. Clientbound play packets are registered write-only , so the direction carrying the overwhelming majority of bytes has no packet-id dependency at all and cannot break on a Minecraft update. Connection handoff only. Per spec §5.4, inventory and game state across backends is a backend-database problem. Relay moves connections and nothing else."
@@ -212,31 +299,38 @@
    "toc": [
     [
      "ref-requirements",
-     "Requirements"
+     "Requirements",
+     2
     ],
     [
      "ref-quick-start",
-     "Quick start"
+     "Quick start",
+     2
     ],
     [
      "ref-quick-start-gradle-directly",
-     "Quick start (Gradle directly)"
+     "Quick start (Gradle directly)",
+     2
     ],
     [
      "ref-configuring-backends",
-     "Configuring backends"
+     "Configuring backends",
+     2
     ],
     [
      "ref-server-groups",
-     "Server groups"
+     "Server groups",
+     2
     ],
     [
      "ref-docker",
-     "Docker"
+     "Docker",
+     2
     ],
     [
      "ref-testing",
-     "Testing"
+     "Testing",
+     2
     ]
    ],
    "text": "Requirements JDK 21+ Backends running Paper with online-mode=false and modern forwarding enabled Quick start The relay.py helper wraps the whole loop. Python 3.11+, no dependencies: bash Copy py relay.py run That stops any running instance, rebuilds if the jar is stale, and starts the proxy with debug logging from the project directory — which matters, because gradle run uses run/ as its working directory and therefore reads a different relay.toml with a different generated forwarding secret. Before blaming the code, run: bash Copy py relay.py doctor It cross-checks Relay s config against each backend s Paper config and reports the mismatches that otherwise fail silently: a forwarding secret that differs by one character (compared by hash, so neither is printed), a PROXY protocol setting that agrees on one side only, a backend left in online mode. Link your backends once so it can see them: bash Copy py relay.py link lobby /path/to/paper-server Linked backends can also be launched, so the whole stack is one command: bash Copy py relay.py up # start every backend, wait for their ports, then run the proxy py relay.py down # stop all of it up puts every backend and the proxy in tabs of a single Windows Terminal window, navigable with Ctrl+Tab . Those tabs are real consoles, not log tails: stop and any other server command can be typed straight into them. The terminal you launched from is then left free, and becomes a control console : text Copy relay status relay doctor relay ping relay shutdown lobby relay exit # servers keep running Every relay.py command works there with the same flags, because typed lines are dispatched through the same parser as the command line — there is one definition of each command rather than two that can drift. py relay.py console opens it against an already-running stack, and up --no-shell skips it. Individually: start lobby takes over this terminal start lobby --tabs a tab in the shared window (automatic when starting several) start lobby --console a separate window of its own start lobby --background detached, logging to .relay-run/ , nothing to type into start lobby --debug adds Paper s packet logging Stopping a server with no console — one started --background — needs RCON. Windows has no SIGTERM, so a detached Java process cannot be signalled cleanly, and a hard kill skips Paper s shutdown hook and can lose recently generated chunks. shutdown therefore uses RCON where it is enabled and otherwise refuses, explaining the options rather than silently risking the world. Enabling it in server.properties is worth doing: properties Copy enable-rcon = true rcon.port = 25575 rcon.password = something Balancing is the one feature a single connection cannot judge, so there is a crowd: bash Copy py relay.py fake 40 --offline --switch 5000 That connects forty real protocol clients through the proxy, then prints where they landed: text Copy Where they landed ----------------- lobby 0 survival-00 21 ############### survival-01 19 ############# total 40 --switch keeps them moving between servers rather than joining and sitting still, which is what exercises the switch path under load; --offline flips online-mode , runs the test and puts it back in a finally , so an interrupt cannot leave a proxy accepting anyone who claims a name. They hold their connections properly: they confirm the join teleport and answer real keep-alives, which is what a server needs before it considers a player spawned. They are genuine connections — a proxy cannot tell them from clients — but they measure routing, not load : a fake player never moves or loads a chunk, so a backend holding a hundred of them is barely working. The proxy must be in offline mode, since nothing here can authenticate with Mojang; fake checks that first and says so rather than letting forty logins fail identically. Before blaming anything, check the stack that is actually running: bash Copy py relay.py doctor --live doctor alone reads config files. --live reads reality: the listener answers a real ping, the control channel is bound, the dashboard responds, every backend is healthy, and each backend s installed plugin matches the current build. That last one matters most — the plugin reports TPS, registers the proxy s commands and carries the backend API, so an old copy silently disagrees with the proxy about what exists. One command for the whole rebuild cycle, which waits until the proxy actually answers rather than until it was merely started: bash Copy py relay.py restart Other commands: status , ping (a real server-list ping, proving the proxy answers rather than merely listens), build , stop , logs -f , test , and paper-debug name which writes the log4j2 config that reveals Paper s packet-level logging. Quick start (Gradle directly) bash Copy ./gradlew run First run writes a commented relay.toml into run/ , with a freshly generated forwarding secret, then exits with a config error until you point [servers] at real backends. Build a standalone jar: bash Copy ./gradlew build The shaded jar lands in proxy/build/libs/proxy- version .jar : bash Copy java -jar proxy/build/libs/proxy-0.1.0-SNAPSHOT.jar --config relay.toml Configuring backends Every backend must have online-mode=false in server.properties — the proxy has already authenticated the player. Then, for modern forwarding, in Paper s config/paper-global.yml : yaml Copy proxies: velocity: enabled: true online-mode: true secret: the forwarding-secret from relay.toml Relay s modern forwarding is wire-compatible with Velocity s, so backends already configured for Velocity need no change. Geyser is an ordinary backend entry. Relay does not speak Bedrock itself; the Geyser bridge does, exactly as it does behind Velocity today. Server groups Several interchangeable backends can share one name. Usually there is nothing to configure — numbered backends group themselves: toml Copy [servers] lobby = 127.0.0.1:25566 survival-01 = 127.0.0.1:25567 survival-02 = 127.0.0.1:25568 survival now names the group. Players type /server survival and land on whichever member is the better host right now; naming a member directly still works, which is how someone rejoins the server their base is on. A group is a destination anywhere a backend is: try , forced hosts, /send , and both plugin-message APIs. Only a separator followed by digits counts, so pvp-arena stays one server. Write a [groups] block out only to say something the naming does not — an odd set, or members that are not numbered: toml Copy [groups] hub = [ lobby , spawn ] An explicit entry wins over the derived one, and a real backend s name always wins over a group. Balancing and failover are deliberately one mechanism rather than two. A group never answers with a single server; it answers with all of its members, best first. So the preferred member is tried, and anything that refuses or is unreachable falls through to the next — and a member that dies under a player hands them to a sibling rather than to whatever came next in the try list. balance least-players fewest players first. Fills an empty server before a busy one, and self-corrects as people come and go. The default round-robin each join takes the next member in turn. Better when players arrive in waves and counts lag the truth random cheap, stateless, even enough over any real number of joins first-available configured order, always. Not balancing: later members exist only to catch failures of earlier ones Ties keep configured order in every strategy, so an empty network still fills predictably. Docker bash Copy docker compose up -d --build Config, logs and the forwarding secret live in ./data . The compose file publishes 25577 rather than 25565 so it can run beside an existing Velocity for side-by-side testing, which is the cutover path in spec §10. Testing bash Copy ./gradlew test Covers wire-format primitives, the NBT component writer, the codec stack under EmbeddedChannel (framing, compression, encryption, packet round trips), the packet registry and its override mechanism, config parsing and validation, permission resolution, and the forwarding signature. ProxyPingTest starts a real listener and drives it over a real socket, speaking the protocol by hand so a symmetric encode/decode bug cannot pass."
@@ -250,11 +344,13 @@
    "toc": [
     [
      "ref-dashboard-api",
-     "Dashboard API"
+     "Dashboard API",
+     2
     ],
     [
      "ref-network-routes",
-     "Network routes"
+     "Network routes",
+     2
     ]
    ],
    "text": "Dashboard API Phase 2 s read-only half, served by the relay-dashboard companion process rather than by the proxy: toml Copy [control] enabled = true bind = 127.0.0.1:25580 [companions.dashboard] command = [ java , -jar , companions/relay-dashboard.jar ] [companions.dashboard.environment] RELAY_DASHBOARD_PORT = 8080 It can also be run by hand against a running proxy, which is what makes it debuggable — copy the control token from the proxy s startup log: bash Copy RELAY_CONTROL_PORT=25580 RELAY_CONTROL_TOKEN=... java -jar relay-dashboard.jar Open http://127.0.0.1:8080 for the page itself — live tiles, backends, groups, players and an event feed. It is bundled in the jar, so the dashboard is one artefact rather than a proxy plus a web server to deploy beside it, and it has no external dependencies: a dashboard that needs a CDN to render fails exactly when someone is diagnosing an outage. GET /api/overview players, uptime, backend and group counts, balance strategy GET /api/servers each backend: address, group, health, latency, version, its own player count, and a load object with TPS, MSPT, heap and CPU GET /api/groups each group, its members, and its total GET /api/players one page of who is online, each with the backend they are on and their full network route. Takes q , server , offset and limit ; answers {total, matched, offset, limit, players, edges} WS /api/events one socket carrying every event type GET /api/audit who did what, newest first POST /api/actions/{drain,send,evacuate,kick} spec §9.3 s actions. Permission-checked against §9.7 s nodes, CSRF-checked, and written to the audit log — refusals included The player list is a page, and the narrowing happens in the proxy. Sending everyone and filtering in the browser was fine for a test network and is not survivable on a real one: it is the whole player list, every row carrying a freshly walked route, rebuilt every few seconds for every open tab. The proxy walks everyone once per request, keeps only the rows it is about to send, and totals the upstream edges on the way past so the topology map still says something true about a network it is no longer being shown all of. Events arrive as {type, player, from, to} , with type one of PLAYER_CONNECTED , PLAYER_DISCONNECTED , PLAYER_SWITCHED_SERVER , SERVER_HEALTH_CHANGED . One socket multiplexes them all, per spec §9.4 — a socket per type would multiply connections by the number of things worth watching. Reading and acting are separate surfaces. Everything above the actions is read-only by construction — a companion reaches it through ControlState , which cannot move a player or close a connection. The four things that can are in ControlActions , behind their own control message type, so that reading a companion s traffic shows which of its messages could have changed the network. Config editing is deliberately absent and stays absent: relay.toml is the single source of truth and something you keep in git, and a dashboard that could rewrite it would make the file a cache of a database nobody can read. The read side needs no account when the dashboard is on loopback with none configured, which is the development default and the only unauthenticated mode there is — off loopback with no accounts, it refuses to start. The actions are checked against §9.7 s permission nodes either way, and every one of them, refused or not, is written to the audit log with the account that asked. Player records still carry no IP address . Saying who is online is one thing; pairing usernames with home addresses is another, and nothing on the page needs it. Addresses can arrive the day something does. load is null until the Relay plugin reports, and carries stale once it stops. The proxy cannot measure these from outside, and cannot ask for them either: a plugin message needs a player connection to travel on, so the backend pushes them on a timer. An empty backend therefore reports nothing — its last figures stop being replaced rather than going to zero, which is why every report is stamped with its age. Relay warns at startup if you bind it anywhere but loopback. Until there is auth, reach it over an SSH tunnel. Network routes Spec §9.1 asks the Players view for a player s complete route , and §7.7 defines a routeId per connection. Most of that shape belongs to the multi-proxy topology of §7, which is v2 — but the part that is true today answers a question a backend name cannot: text Copy mc.example.com → relay-01 → survival → survival-02 Which server someone is on is easy. Why that one is not, and with forced hosts and groups it is the question that actually gets asked. So a route records the hostname they connected to, any upstream that announced itself with a PROXY header, this node, the group that made the choice, and the backend that answered. survival deciding and survival-02 answering are two different facts; collapsing them would hide the balancing decision. It appears in /api/players , on the dashboard, and in /find player . Each session also carries a short routeId — §7.7 issues it for loop prevention across chained proxies, which is v2, but it is independently the cheapest thing that makes a session greppable: one token tying every log line, event and dashboard row for one visit together. The node s own name comes from node-name , defaulting to the machine s hostname (§7.9). One node today makes it only a label, but it is the label routes are read against, and every node called relay would make them useless the day there are two."

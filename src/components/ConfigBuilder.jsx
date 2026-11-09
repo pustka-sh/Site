@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import CodeBlock from './CodeBlock.jsx';
+import { useMedia } from '../hooks/useMedia.js';
 
 /*
  * Builds relay.toml from the keys in Relay's own relay.default.toml, plus the
@@ -205,9 +206,67 @@ export default function ConfigBuilder() {
   const notes = useMemo(() => warnings(c), [c]);
   const activeTab = files[tab] ? tab : 'relay.toml';
 
+  // Where the form and output stack (tablets and phones), a sticky switcher
+  // swaps between them instead of making people scroll past the whole form.
+  // Both views stay mounted, so values and the chosen file survive switching.
+  const stacked = useMedia('(max-width: 1100px)');
+  const [view, setView] = useState('settings');
+  const rootRef = useRef(null);
+  const errors = notes.filter((n) => n[0] === 'error').length;
+  const warns = notes.filter((n) => n[0] === 'warn').length;
+  const status = errors
+    ? { kind: 'error', icon: '✕', text: `${errors} ${errors === 1 ? 'error' : 'errors'}` }
+    : warns
+      ? { kind: 'warn', icon: '!', text: `Valid · ${warns} ${warns === 1 ? 'warning' : 'warnings'}` }
+      : { kind: 'ok', icon: '✓', text: 'Valid' };
+  const show = (next) => {
+    setView(next);
+    const top = rootRef.current?.getBoundingClientRect().top ?? 0;
+    const headerH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--header-h')) || 0;
+    if (top < headerH) {
+      const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: window.scrollY + top - headerH - 8, behavior: smooth ? 'smooth' : 'instant' });
+    }
+  };
+  const views = [['settings', 'Settings'], ['files', 'Generated files']];
+  const onViewKey = (e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const next = view === 'settings' ? 'files' : 'settings';
+    const target = e.key === 'Home' ? 'settings' : e.key === 'End' ? 'files' : next;
+    show(target);
+    document.getElementById(`cb-view-${target}`)?.focus();
+  };
+  const panelId = (id) => (id === 'files' ? 'output' : 'cb-panel-settings');
+  const panel = (id) => (stacked ? { role: 'tabpanel', id: panelId(id), 'aria-labelledby': `cb-view-${id}`, hidden: view !== id } : {});
+
   return (
-    <div className="config-builder" id="builder">
-      <form className="cb-form" onSubmit={(e) => e.preventDefault()} data-md-skip>
+    <div className={`config-builder ${stacked ? 'is-stacked' : ''}`} id="builder" ref={rootRef}>
+      {stacked && (
+        <div className="cb-switcher" data-md-skip>
+          <div className="cb-switcher-tabs" role="tablist" aria-label="Config builder view" onKeyDown={onViewKey}>
+            {views.map(([id, label]) => (
+              <button
+                key={id}
+                id={`cb-view-${id}`}
+                type="button"
+                role="tab"
+                aria-selected={view === id}
+                aria-controls={panelId(id)}
+                tabIndex={view === id ? 0 : -1}
+                onClick={() => show(id)}
+              >
+                {view === id && <motion.span layoutId="cb-view-pill" className="cb-view-pill" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}
+                <span>{id === 'files' ? <><span className="cb-view-long">Generated files</span><span className="cb-view-short">Files</span><small> · {activeTab}</small></> : label}</span>
+              </button>
+            ))}
+          </div>
+          <button type="button" className={`cb-status cb-status-${status.kind}`} onClick={() => show('files')} aria-label={`Validation: ${status.text}. Show details`}>
+            <span aria-hidden="true">{status.icon}</span> <span className="cb-status-text">{status.text}</span>
+          </button>
+        </div>
+      )}
+      <form className="cb-form" onSubmit={(e) => e.preventDefault()} data-md-skip {...panel('settings')}>
         <fieldset>
           <legend>01 / Network</legend>
           <div className="cb-row">
@@ -308,14 +367,14 @@ export default function ConfigBuilder() {
         <button type="button" className="cb-reset" onClick={() => setC(initial())}>Reset to defaults</button>
       </form>
 
-      <div className="cb-output" id="output">
+      <div className="cb-output" id="output" {...panel('files')}>
         <ul className="cb-warnings" aria-live="polite">
           <AnimatePresence initial={false}>
             {notes.map(([level, text]) => (
               <motion.li key={text} className={`cb-${level}`} layout initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>{text}</motion.li>
             ))}
           </AnimatePresence>
-          {!notes.some((n) => n[0] === 'error') && <li className="cb-ok">Looks valid. Relay validates again on start.</li>}
+          {!errors && <li className="cb-ok">Looks valid. Relay validates again on start.</li>}
         </ul>
         <div className="api-tabs cb-tabs" role="tablist" aria-label="Generated files">
           {Object.keys(files).map((name) => (
