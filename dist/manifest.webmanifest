@@ -1,0 +1,13 @@
+{
+  "name": "pustka",
+  "short_name": "pustka",
+  "description": "A workshop for Minecraft software.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#080404",
+  "theme_color": "#080404",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "pustka-ring-clean.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
