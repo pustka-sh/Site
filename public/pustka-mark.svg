@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360" role="img" aria-label="pustka logo">
+  <defs>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#glow)">
+    <circle cx="180" cy="180" r="118" fill="none" stroke="#F4E9E4" stroke-width="40" stroke-linecap="round" stroke-dasharray="180 561.4" transform="rotate(-150 180 180)"/>
+    <circle cx="180" cy="180" r="118" fill="none" stroke="#FF2A2A" stroke-width="40" stroke-linecap="round" stroke-dasharray="180 561.4" transform="rotate(-30 180 180)"/>
+    <circle cx="180" cy="180" r="118" fill="none" stroke="#A8161A" stroke-width="40" stroke-linecap="round" stroke-dasharray="180 561.4" transform="rotate(90 180 180)"/>
+    <line x1="92" y1="268" x2="268" y2="92" stroke="#FFB000" stroke-width="40" stroke-linecap="round"/>
+  </g>
+</svg>

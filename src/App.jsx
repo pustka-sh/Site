@@ -1,0 +1,106 @@
+import { useEffect, useRef, useState } from 'react';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { AnimatePresence, MotionConfig, motion } from 'motion/react';
+import Header from './components/Header.jsx';
+import Footer from './components/Footer.jsx';
+import SearchPalette from './components/SearchPalette.jsx';
+import VoidField from './components/VoidField.jsx';
+import CursorGlow from './components/CursorGlow.jsx';
+import ScrollProgress from './components/ScrollProgress.jsx';
+import BackToTop from './components/BackToTop.jsx';
+import IntroLoader from './components/IntroLoader.jsx';
+import { ToastProvider, useToast } from './components/Toast.jsx';
+import Home from './pages/Home.jsx';
+import Projects from './pages/Projects.jsx';
+import Docs from './pages/Docs.jsx';
+import NotFound from './pages/NotFound.jsx';
+import { useKonami } from './hooks/useKonami.js';
+
+const titles = {
+  '/': 'pustka — Minecraft. From the void.',
+  '/projects': 'Projects — pustka',
+  '/api': 'Relay API — pustka',
+};
+
+function Page({ children }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18, filter: 'blur(6px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function VoidModeNotice({ active }) {
+  const toast = useToast();
+  const previous = useRef(active);
+  useEffect(() => {
+    if (previous.current === active) return;
+    previous.current = active;
+    toast(active ? 'Void mode engaged. ∅' : 'Back to the surface.');
+  }, [active, toast]);
+  return null;
+}
+
+export default function App() {
+  const location = useLocation();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const voidMode = useKonami();
+
+  useEffect(() => {
+    if (titles[location.pathname]) document.title = titles[location.pathname];
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const typing = e.target.closest?.('input, textarea, [contenteditable]');
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((open) => !open);
+      } else if (e.key === '/' && !typing) {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('void-mode', voidMode);
+  }, [voidMode]);
+
+  return (
+    <MotionConfig reducedMotion="user">
+      <ToastProvider>
+        <VoidModeNotice active={voidMode} />
+        <IntroLoader />
+        <VoidField intense={voidMode} />
+        <CursorGlow />
+        <ScrollProgress />
+        <a href="#content" className="skip-link" onClick={(e) => { e.preventDefault(); document.getElementById('content')?.focus(); }}>Skip to content</a>
+        <Header onSearch={() => setSearchOpen(true)} />
+        <main id="content" tabIndex={-1}>
+          <AnimatePresence mode="wait" initial={false}>
+            <Routes location={location} key={location.pathname}>
+              <Route path="/" element={<Page><Home /></Page>} />
+              <Route path="/projects" element={<Page><Projects /></Page>} />
+              <Route path="/docs" element={<Navigate to="/docs/relay" replace />} />
+              <Route path="/docs/:slug" element={<Page><Docs /></Page>} />
+              <Route path="/api" element={<Page><Docs api /></Page>} />
+              <Route path="*" element={<Page><NotFound /></Page>} />
+            </Routes>
+          </AnimatePresence>
+        </main>
+        <Footer />
+        <BackToTop />
+        <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      </ToastProvider>
+    </MotionConfig>
+  );
+}
