@@ -23,6 +23,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/server ./server
 COPY --from=build /app/scripts/sync-relay.mjs ./scripts/sync-relay.mjs
 COPY --from=build /app/src/content/relay.json ./src/content/relay.json
+COPY --from=build /app/src/data/site.js /app/src/data/journal.js ./src/data/
 RUN mkdir -p /data && chown node:node /data
 USER node
 VOLUME ["/data"]

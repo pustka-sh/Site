@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080404">
+  <title>Words that point back to code. — pustka journal</title>
+  <meta name="description" content="Inside the documentation pipeline: Java comments, checked examples, and a source revision on every page.">
+  <link rel="canonical" href="https://pustka.sh/journal/documentation-tied-to-a-commit">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="pustka">
+  <meta property="og:title" content="Words that point back to code. — pustka journal">
+  <meta property="og:description" content="Inside the documentation pipeline: Java comments, checked examples, and a source revision on every page.">
+  <meta property="og:url" content="https://pustka.sh/journal/documentation-tied-to-a-commit">
+  <meta property="og:image" content="https://pustka.sh/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="pustka — Minecraft. From the void.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://pustka.sh/og.png">
+  <link rel="icon" href="/pustka-ring-clean.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+  <link rel="preload" href="/fonts/jetbrains-mono-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    // Apply the saved theme before first paint, so light mode never flashes dark.
+    try {
+      var t = localStorage.getItem('pustka-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      if (t === 'light') document.querySelector('meta[name=theme-color]').content = '#f7f0eb';
+    } catch (e) {}
+  </script>
+  <style>html{background:#080404;color:#f4e9e4}html[data-theme=light]{background:#f7f0eb;color:#1c0e0c}body{margin:0}</style>
+  <script type="module" crossorigin src="/assets/index-pEjUiPtW.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/react-BRZwIcfM.js">
+  <link rel="modulepreload" crossorigin href="/assets/motion-SbbyAvSJ.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-C8sEP4d5.css">
+</head>
+<body>
+  <div id="root"><header class="site-header"><a class="wordmark" href="/">pustka.sh</a><nav class="main-nav" aria-label="Main navigation"><a href="/projects">Projects</a><a href="/docs/projects">Docs</a><a href="/journal" aria-current="page">Journal</a></nav></header><main id="content" tabindex="-1"><div class="container journal-reading"><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/journal">Workshop journal</a><span>/</span><span>Note 002</span></nav><article class="docs-content journal-article"><header><p class="section-label">WORKSHOP NOTES / 002</p><h1>Words that point back to code.</h1><p class="lead">Inside the documentation pipeline: Java comments, checked examples, and a source revision on every page.</p><p class="journal-date">Engineering note · Published <time datetime="2026-11-09">November 9, 2026</time></p></header><div class="published-prose"><p>An API page is useful only if it describes the code someone is building against. Pustka’s documentation packages keep guides, Java declarations, and a source commit together, rather than letting the website quietly combine unrelated revisions.</p>
+<h2 id="one-package-one-source-revision">One package, one source revision</h2>
+<p>A project declares its guides in <code>pustka.docs.json</code>. The packaging command reads those Markdown files and combines them with a Java API artifact produced by the documentation toolchain. The resulting package records the project, documentation version, source commit, and source ref.</p>
+<p>The site checks that identity against its project registry before accepting a signed publication. The signing key stays in the publishing environment. Visitors receive the rendered documentation and revision information, not the key.</p>
+<p>These pieces are visible in the <a href="https://github.com/pustka-sh/Site/blob/8e73d20447b6f2a378336606591726d9b8028b6e/scripts/package-docs.mjs" target="_blank" rel="noopener noreferrer">package builder</a>, <a href="https://github.com/pustka-sh/Site/blob/8e73d20447b6f2a378336606591726d9b8028b6e/server/services/documentation.mjs" target="_blank" rel="noopener noreferrer">publication service</a>, and <a href="https://github.com/pustka-sh/Relay/blob/8e61739a675435320c8b0fe48393e30181249082/.github/workflows/docs.yml" target="_blank" rel="noopener noreferrer">Relay’s documentation workflow</a>. These links capture the implementation this note describes.</p>
+<h2 id="ask-the-compiler-about-java">Ask the compiler about Java</h2>
+<p>The Java doclet works with the compiler’s view of the project. It extracts declarations, parameters, return types, source positions, and authored documentation comments. That gives the website useful structure without treating a text search through <code>.java</code> files as a Java parser.</p>
+<p>There is still a human boundary: a declaration does not explain itself. When a comment is missing, the reader says so. A public Java method is also not automatically a supported integration API; compatibility policy needs to be stated by the project.</p>
+<h2 id="make-examples-earn-their-place">Make examples earn their place</h2>
+<p>Relay’s documentation checks compile the Java examples against the project and compare their contents with the Markdown fences that readers copy. A change to one side without the other fails the check.</p>
+<p>Compilation establishes that an example uses real declarations with compatible types. It does not establish that a network exchange succeeds, that a callback runs on a particular thread, or that every failure case has been handled. Those behaviors still need their own tests and clear explanations.</p>
+<h2 id="preserve-what-a-version-means">Preserve what a version means</h2>
+<p>Development documentation follows <code>main</code> and can advance with a newer signed publication. Published release documentation is preserved: the same release version cannot be replaced with a different package.</p>
+<p>Each page links to its exact source commit, so a reader can inspect the implementation even after development moves on. When comparing versions, structural changes are useful review cues; they do not provide a complete binary or runtime compatibility verdict.</p>
+<p>The result is a small, explicit contract: the page can tell you which code it describes, which words came from that code, and which checks its examples passed. Start from the <a href="/docs/projects">documentation directory</a> to inspect the packages that have actually been published.</p>
+</div><footer><a href="/journal">← All workshop notes</a><a href="/docs/projects">Read the documentation →</a></footer></article></div></main></div>
+</body>
+</html>

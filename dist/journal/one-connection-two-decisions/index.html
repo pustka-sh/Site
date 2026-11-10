@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080404">
+  <title>One connection. Two decisions. — pustka journal</title>
+  <meta name="description" content="Why proving a player’s identity and forwarding it to a backend are separate steps in Relay.">
+  <link rel="canonical" href="https://pustka.sh/journal/one-connection-two-decisions">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="pustka">
+  <meta property="og:title" content="One connection. Two decisions. — pustka journal">
+  <meta property="og:description" content="Why proving a player’s identity and forwarding it to a backend are separate steps in Relay.">
+  <meta property="og:url" content="https://pustka.sh/journal/one-connection-two-decisions">
+  <meta property="og:image" content="https://pustka.sh/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="pustka — Minecraft. From the void.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://pustka.sh/og.png">
+  <link rel="icon" href="/pustka-ring-clean.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+  <link rel="preload" href="/fonts/jetbrains-mono-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    // Apply the saved theme before first paint, so light mode never flashes dark.
+    try {
+      var t = localStorage.getItem('pustka-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      if (t === 'light') document.querySelector('meta[name=theme-color]').content = '#f7f0eb';
+    } catch (e) {}
+  </script>
+  <style>html{background:#080404;color:#f4e9e4}html[data-theme=light]{background:#f7f0eb;color:#1c0e0c}body{margin:0}</style>
+  <script type="module" crossorigin src="/assets/index-pEjUiPtW.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/react-BRZwIcfM.js">
+  <link rel="modulepreload" crossorigin href="/assets/motion-SbbyAvSJ.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-C8sEP4d5.css">
+</head>
+<body>
+  <div id="root"><header class="site-header"><a class="wordmark" href="/">pustka.sh</a><nav class="main-nav" aria-label="Main navigation"><a href="/projects">Projects</a><a href="/docs/projects">Docs</a><a href="/journal" aria-current="page">Journal</a></nav></header><main id="content" tabindex="-1"><div class="container journal-reading"><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/journal">Workshop journal</a><span>/</span><span>Note 001</span></nav><article class="docs-content journal-article"><header><p class="section-label">PROTOCOL NOTES / 001</p><h1>One connection. Two decisions.</h1><p class="lead">Why proving a player’s identity and forwarding it to a backend are separate steps in Relay.</p><p class="journal-date">Engineering note · Published <time datetime="2026-11-09">November 9, 2026</time></p></header><div class="published-prose"><p>An incoming Minecraft connection crosses more than one boundary. The client first reaches Relay. Relay then chooses a backend and connects to it. A setting that makes sense at one boundary can break the other.</p>
+<p>This note follows the distinction in <a href="https://github.com/pustka-sh/Relay/blob/8e61739a675435320c8b0fe48393e30181249082/proxy/src/main/java/dev/relay/session/LoginSessionHandler.java" target="_blank" rel="noopener noreferrer">Relay’s login handler</a> and the <a href="https://github.com/pustka-sh/Relay/blob/8e61739a675435320c8b0fe48393e30181249082/proxy/src/main/resources/relay.default.toml" target="_blank" rel="noopener noreferrer">forwarding configuration</a>. It is an implementation walkthrough, not a release announcement.</p>
+<h2 id="who-is-joining">Who is joining?</h2>
+<p>Authentication answers a question about the player arriving at the proxy. With online authentication enabled, Relay verifies the player through Minecraft’s session service. With offline authentication, that verification does not happen.</p>
+<p>The authentication choice belongs at the network entrance. It does not, by itself, tell a Paper backend how to read identity information sent by a proxy.</p>
+<h2 id="what-does-the-backend-trust">What does the backend trust?</h2>
+<p>Forwarding is the next conversation. A backend needs to receive the player’s identity using the forwarding mode it expects. Relay and the backend must agree on that mode and, for modern forwarding, the shared secret.</p>
+<p>Paper behind a proxy has its own authentication settings. Leaving backend <code>online-mode</code> enabled while configuring proxy forwarding can produce a setup that looks reasonable in two separate configuration files and fails when the files are used together. The <a href="/tools#setup-check">setup checker</a> compares those files because the relationship between their values matters.</p>
+<p>A forwarding secret protects the forwarding exchange. It does not replace controlling who can reach a backend. The backend should only accept connections from the proxy through the network’s firewall or equivalent private networking rules. See the <a href="/docs/quickstart">current setup guide</a> for the actual configuration.</p>
+<h2 id="status-is-a-different-path">Status is a different path</h2>
+<p>The server list status request is not a player login. A successful status response can establish that an address answers Minecraft status requests. It does not prove that authentication, backend selection, and forwarding will succeed for a joining player.</p>
+<p>That is why a reachable server and a working login are different observations. Check the step where the connection stops rather than treating every failure as a forwarding problem.</p>
+<h2 id="follow-the-boundary">Follow the boundary</h2>
+<p>The <a href="/lab/relay">Relay Lab</a> makes these stages visible: handshake, authentication, routing, backend connection, and forwarding. Its scenarios are illustrative traces in the browser. They do not connect to a running proxy or certify a deployment.</p>
+<p>Start with one setting change and follow the affected stage. Then compare the explanation with the source revision linked by the Lab. For an actual network, use the setup checker and the proxy and backend logs alongside that model.</p>
+</div><footer><a href="/journal">← All workshop notes</a><a href="/docs/projects">Read the documentation →</a></footer></article></div></main></div>
+</body>
+</html>

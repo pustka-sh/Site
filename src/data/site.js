@@ -1,4 +1,5 @@
 // Shared by the React app and by scripts/postbuild.mjs (plain Node), so keep it JSX-free.
+import {journal} from './journal.js';
 export const SITE = 'https://pustka.sh';
 export const SOURCE = 'https://github.com/pustka-sh/Relay';
 export const ORG = 'https://github.com/pustka-sh';
@@ -119,6 +120,8 @@ export const endpoints = [
 
 // Every route that gets its own HTML file at build time (titles, descriptions, sitemap).
 export const pages = [
+  {path:'/journal',title:'Workshop journal — pustka',description:'Engineering notes on Minecraft protocols, project decisions, and the tools behind pustka.'},
+  ...journal.map(entry=>({path:`/journal/${entry.slug}`,title:`${entry.title} — pustka journal`,description:entry.description,lastmod:entry.published})),
   { path: '/', title: 'pustka — Minecraft. From the void.', description: 'pustka — a workshop for Minecraft software. Explore our projects, read the documentation, and build with our APIs.' },
   { path: '/projects', title: 'Projects — pustka', description: 'The pustka project register: Relay, a Minecraft server proxy built in Java, and what comes next.' },
   { path: '/docs/projects', title: 'Documentation — pustka', description: 'Project documentation, versioned Markdown guides, and Java API references published from source.' },
@@ -137,6 +140,9 @@ export const pages = [
 ];
 
 export const searchIndex = [
+  {title:'Workshop journal',detail:'Engineering notes / Inside the projects',to:'/journal',terms:'journal writing notes decisions engineering protocols workshop',kind:'page'},
+  ...journal.map(entry=>({title:entry.title,detail:`Journal / ${entry.category.toLowerCase()}`,to:`/journal/${entry.slug}`,terms:entry.description,kind:'journal'})),
+  {title:'Compare Relay documentation',detail:'Review changes between published snapshots',to:'/docs/relay/compare',terms:'api diff compare migration upgrade versions signatures stability',kind:'page'},
   { title:'Relay Lab', detail:'Interactive / Follow a Minecraft connection',to:'/lab/relay',terms:'lab handshake packets bytes routing forwarding authentication simulation minecraft learn',kind:'tool'},
   { title:'Relay documentation',detail:'Project home / Getting started, guides and APIs',to:'/docs/relay',terms:'relay documentation home guide java api dashboard version',kind:'doc'},
   { title: 'Project documentation', detail: 'Versioned guides and source API reference', to:'/docs/projects', terms:'documentation projects versions releases java javadoc source markdown latex math', kind:'doc' },

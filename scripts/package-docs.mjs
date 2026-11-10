@@ -5,12 +5,13 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { MAX_PACKAGE_BYTES, apiArtifactSchema, isProjectId, isSourcePath, validateDocumentationPackage } from '../server/services/documentation.mjs';
+import { applyDocumentationStability, documentationStabilitySchema } from './lib/documentation-stability.mjs';
 
 const projectSchema=z.object({id:z.string().refine(isProjectId),name:z.string().min(1).max(80),repository:z.string().max(200).regex(/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)}).strict();
 export const documentationManifestSchema=z.object({
   schemaVersion:z.literal(1),project:projectSchema,
   guides:z.array(z.object({path:z.string().refine(isSourcePath).refine(value=>value.endsWith('.md')),slug:z.string().regex(/^[a-z0-9][a-z0-9-]{0,79}$/).refine(value=>value!=='api'),title:z.string().min(1).max(200)}).strict()).max(150),
-  api:z.object({language:z.string().regex(/^[a-z][a-z0-9-]{0,29}$/),artifact:z.string().refine(isSourcePath).refine(value=>value.endsWith('.json'))}).strict(),
+  api:z.object({language:z.string().regex(/^[a-z][a-z0-9-]{0,29}$/),artifact:z.string().refine(isSourcePath).refine(value=>value.endsWith('.json')),stability:documentationStabilitySchema.optional()}).strict(),
   checks:z.object({examples:z.array(z.object({path:z.string().refine(isSourcePath).refine(value=>value.endsWith('.java')),guide:z.string().refine(isSourcePath).refine(value=>value.endsWith('.md')),anchor:z.string().min(1).max(200)}).strict()).max(100)}).strict().optional(),
 }).strict();
 
@@ -43,6 +44,7 @@ export async function packageDocumentation({manifestPath,root,apiPath,outPath,ve
   let api;
   try{api=apiArtifactSchema.parse(JSON.parse(await readBounded(artifactFile,MAX_PACKAGE_BYTES)));}catch(cause){if(cause.code==='DOCS_PACKAGING_FAILED')throw cause;throw packagingError('The API documentation artifact does not match schema version 1.');}
   if(api.language!==manifest.api.language)throw packagingError('The API artifact language must match the manifest.');
+  api=applyDocumentationStability(api,manifest.api.stability);
   const pages=[];
   for(const guide of manifest.guides){
     const file=await containedFile(projectRoot,path.join(projectRoot,...guide.path.split('/')));

@@ -20,7 +20,7 @@ test('signed documentation publishing through Express', async t=>{
   await mkdir(scratch,{recursive:true});
   const dir=await mkdtemp(path.join(scratch,'docs-http-'));
   const dist=path.join(dir,'dist');await mkdir(dist);
-  await writeFile(path.join(dist,'index.html'),'<html><head><title>pustka</title><meta name="description" content="Home"><link rel="canonical" href="https://pustka.sh/"><meta property="og:title" content="Home"></head><body>pustka docs reader</body></html>');
+  await writeFile(path.join(dist,'index.html'),'<html><head><title>pustka</title><meta name="description" content="Home"><link rel="canonical" href="https://pustka.sh/"><meta property="og:title" content="Home"></head><body><div id="root">pustka docs reader</div></body></html>');
   const config={...loadConfig({DATA_DIR:dir,DOCS_SYNC_ENABLED:'false',DOCS_PUBLISH_KEYS:JSON.stringify({relay:key})}),distDir:dist};
   const runtime=await createApplication({config});
   const server=await new Promise(resolve=>{const s=runtime.app.listen(0,'127.0.0.1',()=>resolve(s));});
