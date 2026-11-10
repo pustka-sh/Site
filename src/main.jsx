@@ -15,6 +15,7 @@ import './styles/journal.css';
 import './styles/docs-reading.css';
 import './styles/api-stability.css';
 import './styles/docs-compare.css';
+import './styles/footer.css';
 
 // Old links used hash routes (pustka.sh/#/docs/relay). Keep them working.
 if (window.location.hash.startsWith('#/')) {
