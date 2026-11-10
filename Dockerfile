@@ -16,6 +16,9 @@ RUN npm test && npm run build
 
 FROM base AS production
 WORKDIR /app
+LABEL org.opencontainers.image.source="https://github.com/pustka-sh/Site" \
+      org.opencontainers.image.title="Pustka website" \
+      org.opencontainers.image.description="Minecraft software workshop, documentation and network tools"
 ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0 DATA_DIR=/data
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force

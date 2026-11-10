@@ -4,6 +4,8 @@ The website for pustka: a Minecraft software workshop, documentation hub, and co
 
 ## Run with Docker
 
+For ready-built container images, see [image publishing and Proxmox setup](docs/container-images.md). Successful main builds publish to `ghcr.io/pustka-sh/site`; `compose.registry.yml` runs that image without building locally. The first package needs its GitHub visibility configured before anonymous downloads work.
+
 ```sh
 cp .env.example .env
 # Set PUBLIC_ORIGIN to the HTTPS address served by your reverse proxy.

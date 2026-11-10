@@ -57,7 +57,7 @@ For a release use the tag as both version and `refs/tags/<version>`. Packaging v
 
 1. Merge and deploy the backend and documentation changes. Keep the `/data` volume.
 2. Generate an independent random key per project on your own host, for example `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
-3. Add `DOCS_PUBLISH_KEYS={"relay":"YOUR_RANDOM_KEY"}` to the host's `.env` and restart the container. Never commit the real key.
+3. Add `DOCS_PUBLISH_KEYS={"relay":"YOUR_RANDOM_KEY"}` to the host's `.env` and recreate the container with `docker compose up -d --no-deps --force-recreate site`. A plain `docker restart` retains the old environment. Keep the existing data volume and never commit the real key.
 4. Set Relay's GitHub Actions secret `PUSTKA_DOCS_PUBLISH_KEY` to the same Relay key. The publisher defaults to `https://pustka.sh/api/site/docs/publish`. For another host set the repository variable `PUSTKA_DOCS_PUBLISH_URL` to its HTTPS publication endpoint.
 5. Merge Relay's workflow. Main pushes and version tags publish; pull requests validate and upload a review artifact without the publication secret. Run it manually on main for the first publication if needed.
 
