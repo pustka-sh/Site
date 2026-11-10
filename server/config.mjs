@@ -8,6 +8,20 @@ const integer = (value, fallback, min, max) => {
   if (!Number.isInteger(parsed) || parsed < min || parsed > max) throw new Error('Invalid numeric server configuration.');
   return parsed;
 };
+function publicationKeys(value) {
+  if (!value) return {};
+  try {
+    if (value.length > 16384) throw new Error();
+    const keys = JSON.parse(value);
+    if (!keys || Array.isArray(keys) || typeof keys !== 'object' || Object.keys(keys).length > 100) throw new Error();
+    for (const [project, key] of Object.entries(keys)) {
+      if (!/^[a-z0-9][a-z0-9-]{0,39}$/.test(project) || typeof key !== 'string' || key.length < 32 || key.length > 512) throw new Error();
+    }
+    return keys;
+  } catch {
+    throw new Error('DOCS_PUBLISH_KEYS must be a JSON object of project IDs and keys of at least 32 characters.');
+  }
+}
 export function loadConfig(env = process.env) {
   const production = env.NODE_ENV === 'production';
   let origin = env.PUBLIC_ORIGIN || '';
@@ -29,6 +43,7 @@ export function loadConfig(env = process.env) {
     issueRepo: env.ISSUE_REPOSITORY || 'pustka-sh/Relay',
     issueReporting: env.ENABLE_ISSUE_REPORTS === 'true',
     webhookSecret: env.GITHUB_WEBHOOK_SECRET || '',
+    docsPublishKeys: publicationKeys(env.DOCS_PUBLISH_KEYS),
     shareDays: integer(env.SHARE_TTL_DAYS, 30, 1, 365),
     syncEnabled: env.DOCS_SYNC_ENABLED !== 'false',
     syncOnStart: env.DOCS_SYNC_ON_START !== 'false',

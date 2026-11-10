@@ -14,6 +14,8 @@ import { inspectSetup } from './services/setup-checker.mjs';
 import { createGithubService } from './services/github.mjs';
 import { createContentService, verifyWebhook } from './services/content-sync.mjs';
 import { createDemoService } from './services/demo.mjs';
+import { createDocumentationService } from './services/documentation.mjs';
+import { documentationHtml } from './documentation-html.mjs';
 
 const apiError = (status, code, message) => Object.assign(new Error(message), {status, code, expose:true});
 const feedbackPages = new Set(['/api', ...['relay','quickstart','compatibility','backend','client','packets','configuration','protocol-ids'].map(page=>`/docs/${page}`)]);
@@ -44,6 +46,7 @@ export async function createApplication(overrides = {}) {
   const github = overrides.github || createGithubService({token: config.githubToken, projects: registry});
   const content = overrides.content || createContentService({dataDir: config.dataDir, syncEnabled: config.syncEnabled});
   const demo = overrides.demo || createDemoService({url: config.demoUrl, username: config.demoUsername, password: config.demoPassword, authorization: config.demoAuthorization});
+  const documentation = overrides.documentation || await createDocumentationService({dataDir:config.dataDir, projects:registry, keys:config.docsPublishKeys || {}});
   const issues = overrides.issues || createIssueService({token: config.issueToken, repository: config.issueRepo, enabled: config.issueReporting});
   const checkServer = overrides.checkMinecraft || checkMinecraftServer;
   const checkSetup = overrides.checkSetup || inspectSetup;
@@ -52,8 +55,10 @@ export async function createApplication(overrides = {}) {
   app.set('trust proxy', config.trustProxy);
   app.set('json escape', true);
   const hashes = [];
+  let shellHtml = '';
   if (existsSync(path.join(config.distDir, 'index.html'))) {
     const html = readFileSync(path.join(config.distDir, 'index.html'), 'utf8');
+    shellHtml = html;
     for (const match of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) hashes.push(`'sha256-${createHash('sha256').update(match[1].replace(/\r\n?/g,'\n')).digest('base64')}'`);
   }
   app.use(helmet({
@@ -91,10 +96,20 @@ export async function createApplication(overrides = {}) {
     const result = await content.requestSync();
     res.status(202).json({received: true, ...result});
   });
+  api.post('/docs/publish', limiter(30, 60 * 60000), express.raw({type:'application/json', limit:'8mb', inflate:false}), async (req, res) => {
+    if (!Buffer.isBuffer(req.body)) throw apiError(415, 'JSON_REQUIRED', 'Send a documentation package as JSON.');
+    const result = await documentation.publish(req.body, {project:req.get('X-Pustka-Project'), timestamp:req.get('X-Pustka-Timestamp'), signature:req.get('X-Pustka-Signature')});
+    res.status(result.idempotent ? 200 : 201).json(result);
+  });
   api.use(express.json({limit: '96kb', strict: true}));
   const writes = [sameOrigin(config), writeLimit];
   api.get('/health', (req, res) => res.json({status:'ok'}));
-  api.get('/capabilities', (req, res) => res.json({backend:true,serverChecker:true,setupChecker:true,configSharing:true,feedback:true,issueReporting:issues.enabled,demo:!!config.demoUrl,docsSync:config.syncEnabled}));
+  api.get('/capabilities', (req, res) => res.json({backend:true,serverChecker:true,setupChecker:true,configSharing:true,feedback:true,issueReporting:issues.enabled,demo:!!config.demoUrl,docsSync:config.syncEnabled,documentation:true}));
+  api.get('/docs/projects', async (req,res)=>res.json(await documentation.projects()));
+  api.get('/docs/:project/versions', async (req,res)=>res.json(await documentation.versions(req.params.project)));
+  api.get('/docs/:project/:version/pages/:slug', async (req,res)=>res.json(await documentation.page(req.params.project,req.params.version,req.params.slug)));
+  api.get('/docs/:project/:version/api', async (req,res)=>res.json(await documentation.symbol(req.params.project,req.params.version,req.query.symbol)));
+  api.get('/docs/:project/:version', async (req,res)=>res.json(await documentation.manifest(req.params.project,req.params.version)));
   api.get('/projects', async (req, res) => {
     try { res.json(await github.getProjects()); }
     catch (error) {
@@ -137,13 +152,28 @@ export async function createApplication(overrides = {}) {
   api.use((req, res) => res.status(404).json({error:{code:'NOT_FOUND',message:'Unknown API route.'}}));
 
   app.get('/feed.xml', async (req, res) => res.type('application/rss+xml').send(await content.rss({origin:config.origin || 'https://pustka.sh'})));
-  app.get(['/docs','/docs/'], (req,res)=>res.redirect(308,'/docs/relay'));
+  app.get(['/docs','/docs/'], (req,res)=>res.redirect(308,'/docs/projects'));
   app.get(['/docs/api','/docs/api/'], (req,res)=>res.redirect(308,'/api'));
   app.use(express.static(config.distDir, {index:false, redirect:false, dotfiles:'deny', maxAge:0, setHeaders(res, file) {
     if (path.basename(path.dirname(file)) === 'assets') res.set('Cache-Control', 'public, max-age=31536000, immutable');
   }}));
   app.get(/^\/c\/[A-Za-z0-9_-]{16}\/?$/, (req, res) => {res.set({'X-Robots-Tag':'noindex, nofollow','Cache-Control':'no-store'}).sendFile(path.join(config.distDir,'index.html'),{dotfiles:'allow'});});
-  const knownPages = new Set(['/', '/projects', '/tools', '/releases', '/live', '/help', '/changelog', '/api', '/docs/relay', '/docs/quickstart', '/docs/backend', '/docs/client', '/docs/packets', '/docs/compatibility', '/docs/configuration', '/docs/protocol-ids']);
+  app.get(/^\/docs\/[a-z0-9][a-z0-9-]{0,39}\/(?:main|v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?)(?:\/[a-z0-9][a-z0-9-]{0,79})?\/?$/, async (req,res,next)=>{
+    const [,,project,version,slug] = req.path.replace(/\/$/,'').split('/');
+    let manifest;
+    try {manifest=await documentation.manifest(project,version);}
+    catch(error){if(error.status!==404)return next(error);return res.status(404).set('X-Robots-Tag','noindex').type('html').send(shellHtml);}
+    const page=slug&&slug!=='api'?manifest.pages.find(page=>page.slug===slug):null;
+    const symbolId=slug==='api'&&typeof req.query.symbol==='string'?req.query.symbol:null;
+    const symbol=symbolId?manifest.api.symbols.find(symbol=>symbol.id===symbolId):null;
+    if((slug&&slug!=='api'&&!page)||(symbolId&&!symbol))return res.status(404).set('X-Robots-Tag','noindex').type('html').send(shellHtml);
+    const label=symbol?.qualifiedName||page?.title||(slug==='api'?'API reference':'Documentation');
+    const title=`${label} · ${manifest.project.name} ${version} — pustka`;
+    const description=symbol?.summary||`${label} for ${manifest.project.name} ${version}, published from source commit ${manifest.source.commit.slice(0,7)}.`;
+    const url=(config.origin||'https://pustka.sh')+req.path.replace(/\/$/,'')+(symbol?`?symbol=${encodeURIComponent(symbol.id)}`:'');
+    res.type('html').set('Cache-Control','no-cache').send(documentationHtml(shellHtml,{title,description:description.slice(0,300),url}));
+  });
+  const knownPages = new Set(['/', '/projects', '/tools', '/releases', '/live', '/help', '/changelog', '/api', '/docs/projects', '/docs/relay', '/docs/quickstart', '/docs/backend', '/docs/client', '/docs/packets', '/docs/compatibility', '/docs/configuration', '/docs/protocol-ids']);
   app.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     const urlPath = req.path.replace(/\/+$/, '') || '/';
@@ -161,5 +191,5 @@ export async function createApplication(overrides = {}) {
     const safe = error.expose === true;
     res.status(status >= 400 && status <= 599 ? status : 500).json({error:{code:status === 413 ? 'BODY_TOO_LARGE' : safe && typeof error.code === 'string' ? error.code : 'REQUEST_FAILED',message:status === 413 ? 'This request is too large.' : safe && error.type !== 'entity.parse.failed' ? error.message : status === 400 ? 'Invalid JSON request.' : 'The request could not be completed. Please try again later.'}});
   });
-  return {app, config, store, content, github, demo, close:async () => {await content.close?.();await content.waitForIdle?.();store.close();}};
+  return {app, config, store, content, github, demo, documentation, close:async () => {await content.close?.();await content.waitForIdle?.();store.close();}};
 }

@@ -119,6 +119,7 @@ export const endpoints = [
 export const pages = [
   { path: '/', title: 'pustka — Minecraft. From the void.', description: 'pustka — a workshop for Minecraft software. Explore our projects, read the documentation, and build with our APIs.' },
   { path: '/projects', title: 'Projects — pustka', description: 'The pustka project register: Relay, a Minecraft server proxy built in Java, and what comes next.' },
+  { path: '/docs/projects', title: 'Documentation — pustka', description: 'Project documentation, versioned Markdown guides, and Java API references published from source.' },
   { path: '/changelog', title: 'Changelog — pustka', description: 'Every change to Relay, straight from its commit history.' },
   { path: '/help', title: 'Help — pustka', description: 'Get help with Relay: diagnose a setup, report an issue, contribute, and common questions.' },
   { path: '/tools', title: 'Workshop tools — pustka', description: 'Check a public Minecraft server, compare Relay and Paper settings, and explore the pustka project registry.' },
@@ -132,6 +133,7 @@ export const pages = [
 ];
 
 export const searchIndex = [
+  { title: 'Project documentation', detail: 'Versioned guides and source API reference', to:'/docs/projects', terms:'documentation projects versions releases java javadoc source markdown latex math', kind:'doc' },
   { title: 'Home', detail: 'pustka / The workshop', to: '/', terms: 'home start workshop pustka', kind: 'page' },
   { title: 'Relay', detail: 'Project / Minecraft server proxy', to: '/projects', terms: 'java proxy projects register network infrastructure roadmap status phases', kind: 'project' },
   { title: 'Changelog', detail: 'Relay / Commit history', to: '/changelog', terms: 'changes history commits releases what is new', kind: 'page' },

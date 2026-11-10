@@ -18,6 +18,8 @@ if(persistence){
  assert.match(html,/Workshop tools/);assert.match(page.headers.get('content-security-policy'),/sha256-/);
  for(const match of html.matchAll(/(?:src|href)="(\/assets\/[^"\s]+)"/g))assert.equal((await fetch(base+match[1])).status,200);
  assert.equal((await fetch(base+'/api')).status,200);
+ assert.equal((await fetch(base+'/docs/projects')).status,200);
+ const docs=await fetch(base+'/api/site/docs/projects');assert.equal(docs.status,200);assert.ok(Array.isArray((await docs.json()).projects));
  assert.equal((await fetch(base+'/api/site/content')).status,200);
  assert.equal((await fetch(base+'/feed.xml')).status,200);
  const blocked=await post('/api/site/server-check',{address:'127.0.0.1:25565'});assert.equal(blocked.status,400);

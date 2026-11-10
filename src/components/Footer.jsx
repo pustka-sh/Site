@@ -15,7 +15,7 @@ export default function Footer() {
           <div className="footer-links">
             <span className="footer-head">WORKSHOP</span>
             <Link to="/projects">Projects</Link>
-            <Link to="/docs/relay">Documentation</Link>
+            <Link to="/docs/projects">Documentation</Link>
             <Link to="/api">API reference</Link>
             <Link to="/docs/configuration">Config builder</Link>
             <Link to="/changelog">Changelog</Link>

@@ -43,6 +43,12 @@ Requires Node 24+. During development, run `npm run server` and `npm run dev` in
 
 The JSON is committed, so building never needs the network and the diff shows exactly what changed upstream. Point it at a local checkout with `RELAY_DIR=../relay npm run sync`. Raw HTML in upstream Markdown is escaped, not rendered. In Docker, a startup refresh, a six-hour refresh, and an optional signed GitHub push webhook update a separate snapshot in the data volume. A failed refresh keeps the previous complete snapshot available. Browsers read that snapshot through the same-origin API, with the bundled content as a static-host fallback.
 
+## Documentation from code
+
+The project documentation reader at `/docs/projects` accepts versioned Markdown guides and API references extracted from Java comments. Relay is the first adapter; packages include exact source commits, overload-specific symbol links, local search, and LaTeX math rendered with self-hosted KaTeX. Publication uses per-project signed uploads from CI and atomic snapshots in the Docker data volume. Main is labeled development; releases are immutable.
+
+See [authoring, publication and Docker setup](docs/docs-as-code.md) and the [package contract](docs/docs-as-code-contract.md). Running all tests also requires a JDK 21+ toolchain. The Docker builder and GitHub build workflow provide it; Java is absent from the production image.
+
 ## Host
 
 Docker runs Express, which serves `dist/` and `/api/site/*` together. `/api` remains the Relay API documentation page. `npm run build` also produces a static `dist/` with per-route HTML and an RSS feed; static hosting retains the existing pages and local config builder, while server-dependent tools explain when the service is unavailable.
