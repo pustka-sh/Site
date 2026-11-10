@@ -205,6 +205,7 @@ export default function VoxelSpecimen() {
           aria-hidden="true"
           onPointerMove={onPointerMove}
           onPointerLeave={onPointerLeave}
+          onContextMenu={(e) => e.preventDefault()}
         >
           <defs>
             <radialGradient id="voidGlow"><stop offset="0" stopColor="#ff2a2a" stopOpacity=".16" /><stop offset="1" stopColor="#ff2a2a" stopOpacity="0" /></radialGradient>
