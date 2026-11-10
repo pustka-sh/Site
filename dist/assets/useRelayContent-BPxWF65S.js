@@ -1,1 +1,0 @@
-import{_ as a}from"./index-BHztQwgd.js";import{r}from"./react-Du2oSRmn.js";let t=null,n=null;const l=()=>t?Promise.resolve(t):(n||=a(()=>import("./relay-Cw6bnzJA.js"),[]).then(e=>t=e.default),n);function i(){const[e,o]=r.useState(t);return r.useEffect(()=>{t||l().then(o)},[]),e}export{i as u};

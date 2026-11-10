@@ -7,3 +7,6 @@
 Thumbs.db
 node_modules/
 *.log
+data/
+coverage/
+.test-share-id

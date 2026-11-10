@@ -136,7 +136,7 @@ function Configuration() {
   const data = useRelayContent();
   return (
     <>
-      <p>Every option below is a real key from Relay’s <code>relay.default.toml</code>. Change what you need; the files on the right update as you type. Nothing is sent anywhere.</p>
+      <p>Every option below is a real key from Relay’s <code>relay.default.toml</code>. Your generated files stay in your browser. Only settings you explicitly share are sent to the site, with the forwarding secret excluded.</p>
       <ConfigBuilder />
       <h2 id="default">The full default</h2>
       <p>The commented file Relay writes on first start, with every setting explained by its authors.</p>

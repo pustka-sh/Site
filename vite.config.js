@@ -6,6 +6,11 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: '/',
   plugins: [react()],
+  server: { proxy: {
+    '/api/site': 'http://127.0.0.1:3000',
+    '/health': 'http://127.0.0.1:3000',
+    '/feed.xml': 'http://127.0.0.1:3000',
+  } },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

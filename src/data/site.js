@@ -121,6 +121,9 @@ export const pages = [
   { path: '/projects', title: 'Projects — pustka', description: 'The pustka project register: Relay, a Minecraft server proxy built in Java, and what comes next.' },
   { path: '/changelog', title: 'Changelog — pustka', description: 'Every change to Relay, straight from its commit history.' },
   { path: '/help', title: 'Help — pustka', description: 'Get help with Relay: diagnose a setup, report an issue, contribute, and common questions.' },
+  { path: '/tools', title: 'Workshop tools — pustka', description: 'Check a public Minecraft server, compare Relay and Paper settings, and explore the pustka project registry.' },
+  { path: '/releases', title: 'Releases — pustka', description: 'Published pustka releases, downloads, and available SHA-256 checksums from GitHub.' },
+  { path: '/live', title: 'Live network — pustka', description: 'A read-only look at the configured Relay demo network.' },
   ...docNav.map((d) => ({
     path: docPath(d.id),
     title: `${d.id === 'api' ? 'Relay API' : docMeta[d.id].title.replace(/\.$/, '')} — pustka`,
@@ -133,6 +136,10 @@ export const searchIndex = [
   { title: 'Relay', detail: 'Project / Minecraft server proxy', to: '/projects', terms: 'java proxy projects register network infrastructure roadmap status phases', kind: 'project' },
   { title: 'Changelog', detail: 'Relay / Commit history', to: '/changelog', terms: 'changes history commits releases what is new', kind: 'page' },
   { title: 'Help', detail: 'Support, issues, contributing, FAQ', to: '/help', terms: 'help support bug issue report contribute faq question doctor', kind: 'page' },
+  { title: 'Server checker', detail: 'Workshop / Public Minecraft server status', to: '/tools', anchor: 'server-check', terms: 'ping motd players status java minecraft compatibility', kind: 'tool' },
+  { title: 'Setup checker', detail: 'Workshop / Compare Relay and Paper configs', to: '/tools', anchor: 'setup-check', terms: 'doctor secret forwarding proxy protocol mismatch configuration', kind: 'tool' },
+  { title: 'Releases', detail: 'Downloads and published checksums', to: '/releases', terms: 'releases downloads checksum sha256 jar version', kind: 'page' },
+  { title: 'Live network', detail: 'Read-only Relay demo', to: '/live', terms: 'demo network live health servers dashboard', kind: 'page' },
   ...docNav.flatMap((d) => [
     {
       title: d.title,
