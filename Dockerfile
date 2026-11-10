@@ -18,11 +18,13 @@ FROM base AS production
 WORKDIR /app
 LABEL org.opencontainers.image.source="https://github.com/pustka-sh/Site" \
       org.opencontainers.image.title="Pustka website" \
+      org.opencontainers.image.licenses="LicenseRef-Pustka-Proprietary" \
       org.opencontainers.image.description="Minecraft software workshop, documentation and network tools"
 ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0 DATA_DIR=/data
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/LICENSE ./LICENSE
 COPY --from=build /app/server ./server
 COPY --from=build /app/scripts/sync-relay.mjs ./scripts/sync-relay.mjs
 COPY --from=build /app/src/content/relay.json ./src/content/relay.json
