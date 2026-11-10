@@ -6,6 +6,8 @@ Commit tags identify the source revision. Rebuilding the same revision can refre
 
 The build job tests the application and Docker image, including database persistence, then saves that exact image as a one-day artifact. A separate publisher downloads this run's artifact, verifies its source/revision labels, and pushes it without rebuilding. Only the trusted main publisher receives `packages: write`; it uses GitHub's short-lived `GITHUB_TOKEN`. No registry password, documentation publishing key, or other application credential is baked into the image. Runtime secrets stay in the server's environment.
 
+After pushing, the publisher reads both tag digests from the registry and requires them to match before reporting success. Local Docker references can still name the saved archive's source alias, so they are not used as evidence of registry publication. Each push has one bounded retry of the same image to recover from a transient registry rejection; persistent failures still fail the workflow.
+
 ## First publication
 
 1. Merge the publishing workflow to `main` and let its Build workflow finish. You can also run Build manually on `main` after the workflow is available there.
