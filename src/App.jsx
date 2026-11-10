@@ -25,6 +25,8 @@ const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 const Tools = lazy(() => import('./pages/Tools.jsx'));
 const Releases = lazy(() => import('./pages/Releases.jsx'));
 const Live = lazy(() => import('./pages/Live.jsx'));
+const PublishedDocs = lazy(() => import('./pages/PublishedDocs.jsx'));
+const DocsProjects = lazy(() => import('./pages/PublishedDocs.jsx').then(module=>({default:module.DocsProjects})));
 
 function Page({ children }) {
   return (
@@ -123,7 +125,10 @@ export default function App() {
               <Route path="/releases" element={<Page><Releases /></Page>} />
               <Route path="/live" element={<Page><Live /></Page>} />
               <Route path="/c/:id" element={<Page><SharedConfig /></Page>} />
-              <Route path="/docs" element={<Navigate to="/docs/relay" replace />} />
+              <Route path="/docs" element={<Navigate to="/docs/projects" replace />} />
+              <Route path="/docs/projects" element={<Page><DocsProjects /></Page>} />
+              <Route path="/docs/:project/:version" element={<Page><PublishedDocs /></Page>} />
+              <Route path="/docs/:project/:version/:slug" element={<Page><PublishedDocs /></Page>} />
               <Route path="/docs/api" element={<Navigate to="/api" replace />} />
               <Route path="/docs/:slug" element={<Page><Docs /></Page>} />
               <Route path="/api" element={<Page><Docs api /></Page>} />

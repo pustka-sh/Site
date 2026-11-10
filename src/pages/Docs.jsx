@@ -6,6 +6,7 @@ import { Callout } from '../components/CodeBlock.jsx';
 import { useToast } from '../components/Toast.jsx';
 import NotFound from './NotFound.jsx';
 import DocsFeedback from '../components/DocsFeedback.jsx';
+import DocsProjectSwitcher from '../components/DocsProjectSwitcher.jsx';
 import { docBodies, ApiChoices } from './docContent.jsx';
 import { useRelayContent } from '../lib/useRelayContent.js';
 import { toMarkdown } from '../lib/toMarkdown.js';
@@ -209,6 +210,7 @@ export default function Docs({ api = false }) {
         Relay / {docTitle(key)} <span>{menuOpen ? 'Close −' : 'Browse +'}</span>
       </button>
       <aside className={`docs-sidebar ${menuOpen ? 'open' : ''}`} id="docs-sidebar" aria-label="Documentation navigation">
+        <DocsProjectSwitcher currentProject="relay" />
         <div className="docs-project">Relay <span>proxy</span></div>
         {docGroups.map((g) => (
           <div key={g}>
