@@ -13,7 +13,7 @@ export default function DocsProjectSwitcher({currentProject = 'relay', currentVe
     const project = projects.find(entry => entry.id === event.target.value);
     if (!project) return;
     const version = project.defaultVersion || project.versions?.[0]?.version;
-    navigate(version ? docBase(project.id,version) : `/docs/projects#${encodeURIComponent(project.id)}`);
+    navigate(project.id==='relay'?'/docs/relay':version ? docBase(project.id,version) : `/docs/projects#${encodeURIComponent(project.id)}`);
   };
   return <div className={`published-switcher ${compact ? 'compact' : ''}`}>
     {projects.length > 0 && <div className="published-select-fields">
@@ -22,11 +22,12 @@ export default function DocsProjectSwitcher({currentProject = 'relay', currentVe
         {projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}
       </select></label>
       {versions.length > 0 && <label htmlFor={`${id}-version`}><span>Version</span><select id={`${id}-version`} value={currentVersion} onChange={event => {if(event.target.value)navigate(docBase(currentProject,event.target.value));}}>
-        {!currentVersion && <option value="">Current guide pages</option>}
+        {!currentVersion && <option value="">Current guides / project home</option>}
         {currentVersion && !versions.some(entry=>entry.version===currentVersion) && <option value={currentVersion}>{currentVersion} · unavailable</option>}
         {versions.map(entry => <option key={entry.version} value={entry.version}>{entry.version}{entry.development || entry.version === 'main' ? ' · development' : ' · release'}</option>)}
       </select></label>}
     </div>}
+    {currentProject==='relay'&&<Link className="published-directory-link" to="/docs/relay">Relay documentation home <span aria-hidden="true">→</span></Link>}
     <Link className="published-directory-link" to="/docs/projects">Browse project docs <span aria-hidden="true">↗</span></Link>
   </div>;
 }

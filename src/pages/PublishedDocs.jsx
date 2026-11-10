@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import DocsProjectSwitcher from '../components/DocsProjectSwitcher.jsx';
+import { MarkdownActions, ReaderOutline, usePublishedProse, useReaderOutline } from '../components/PublishedReaderTools.jsx';
+import { useDocumentationSearch } from '../lib/docsSearch.js';
 import { apiLink, docBase, docsDate, isType, repositoryUrl, sourceUrl, useDocProjects, usePublishedResource } from '../lib/publishedDocs.js';
 
 const kindLabel = kind => String(kind || 'symbol').replaceAll('-', ' ');
@@ -22,8 +24,11 @@ export function DocsProjects() {
   </div>;
 }
 
-function PublishedHtml({html, fallback, project, version, className = ''}) {
+const PublishedHtml=memo(function PublishedHtml({html, fallback, project, version, title, className = ''}) {
   const navigate = useNavigate();
+  const rootRef=useRef(null);
+  const markup=useMemo(()=>({__html:html||''}),[html]);
+  usePublishedProse(rootRef,html,title);
   const onClick = (event) => {
     if(event.defaultPrevented || event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return;
     const anchor=event.target.closest('a');
@@ -36,8 +41,8 @@ function PublishedHtml({html, fallback, project, version, className = ''}) {
     if(href.startsWith('#'))return;
     try{const target=new URL(href,window.location.href);if(target.origin===window.location.origin&&target.pathname.startsWith('/docs/')){event.preventDefault();navigate(target.pathname+target.search+target.hash);}}catch{/* A malformed inert link is left to the browser. */}
   };
-  return typeof html==='string' && html.trim() ? <div className={`published-prose ${className}`} onClick={onClick} dangerouslySetInnerHTML={{__html:html}} /> : fallback ? <p className={`published-prose ${className}`}>{fallback}</p> : null;
-}
+  return typeof html==='string' && html.trim() ? <div ref={rootRef} className={`published-prose ${className}`} onClick={onClick} dangerouslySetInnerHTML={markup} /> : fallback ? <p className={`published-prose ${className}`}>{fallback}</p> : null;
+});
 
 function Revision({manifest, source}) {
   const href=sourceUrl(manifest.project?.repository,manifest.source?.commit,source);
@@ -81,32 +86,43 @@ function ApiSymbol({manifest, id}) {
   return <><p className="published-symbol-kind">{kindLabel(symbol.kind)}{symbol.deprecated&&<span className="published-deprecated">Deprecated</span>}</p><h1 className="published-symbol-title">{symbol.name}</h1><p className="published-qualified-name">{symbol.qualifiedName}</p>{owner&&<Link className="published-owner" to={apiLink(project,version,owner.id)}>In {owner.qualifiedName || owner.name} →</Link>}<Revision manifest={manifest} source={symbol.source}/><pre className="published-signature"><code>{symbol.signature}</code></pre>
     {symbol.deprecated&&<aside className="published-deprecation"><strong>Deprecated API</strong><PublishedHtml html={symbol.deprecationHtml} fallback={symbol.deprecation || 'This symbol is marked deprecated in its source.'} {...htmlProps}/></aside>}
     {symbol.description||symbol.summary ? <PublishedHtml html={symbol.descriptionHtml || symbol.summaryHtml} fallback={symbol.description || symbol.summary} {...htmlProps}/> : <p className="published-undocumented">No description has been written for this symbol in the source yet. Its signature and location are still available.</p>}
-    {!!symbol.parameters?.length&&<><h2>Parameters</h2><div className="table-wrap"><table className="reference-table published-parameter-table"><thead><tr><th>Name / type</th><th>Description</th></tr></thead><tbody>{symbol.parameters.map((parameter,index)=><tr key={`${parameter.name}-${index}`}><td><code>{parameter.name}</code><small>{parameter.type}</small></td><td><PublishedHtml html={parameter.descriptionHtml} fallback={parameter.description || 'Not documented in the source.'} {...htmlProps}/></td></tr>)}</tbody></table></div></>}
-    {symbol.returns&&symbol.returns.type!=='void'&&<><h2>Returns</h2><p><code>{symbol.returns.type}</code></p><PublishedHtml html={symbol.returns.descriptionHtml} fallback={symbol.returns.description || 'No return description is provided in the source.'} {...htmlProps}/></>}
-    {!!symbol.throws?.length&&<><h2>Throws</h2>{symbol.throws.map((exception,index)=><div className="published-exception" key={`${exception.type}-${index}`}><code>{exception.type}</code><PublishedHtml html={exception.descriptionHtml} fallback={exception.description || 'Not documented in the source.'} {...htmlProps}/></div>)}</>}
+    {!!symbol.parameters?.length&&<><h2 id="api-parameters">Parameters</h2><div className="table-wrap"><table className="reference-table published-parameter-table"><thead><tr><th>Name / type</th><th>Description</th></tr></thead><tbody>{symbol.parameters.map((parameter,index)=><tr key={`${parameter.name}-${index}`}><td><code>{parameter.name}</code><small>{parameter.type}</small></td><td><PublishedHtml html={parameter.descriptionHtml} fallback={parameter.description || 'Not documented in the source.'} {...htmlProps}/></td></tr>)}</tbody></table></div></>}
+    {symbol.returns&&symbol.returns.type!=='void'&&<><h2 id="api-returns">Returns</h2><p><code>{symbol.returns.type}</code></p><PublishedHtml html={symbol.returns.descriptionHtml} fallback={symbol.returns.description || 'No return description is provided in the source.'} {...htmlProps}/></>}
+    {!!symbol.throws?.length&&<><h2 id="api-throws">Throws</h2>{symbol.throws.map((exception,index)=><div className="published-exception" key={`${exception.type}-${index}`}><code>{exception.type}</code><PublishedHtml html={exception.descriptionHtml} fallback={exception.description || 'Not documented in the source.'} {...htmlProps}/></div>)}</>}
     {symbol.since&&<p className="published-since">Since <code>{symbol.since}</code></p>}
-    {members.length>0&&<><h2>Members</h2><div className="published-member-list">{members.map(member=><Link to={apiLink(project,version,member.id)} key={member.id}><span className="published-kind">{kindLabel(member.kind)}</span><code>{member.signature}</code><span aria-hidden="true">→</span></Link>)}</div></>}
+    {members.length>0&&<><h2 id="api-members">Members</h2><div className="published-member-list">{members.map(member=><Link to={apiLink(project,version,member.id)} key={member.id}><span className="published-kind">{kindLabel(member.kind)}</span><code>{member.signature}</code><span aria-hidden="true">→</span></Link>)}</div></>}
   </>;
 }
 
 function Guide({manifest, slug}) {
   const state=usePublishedResource(`/docs/${encodeURIComponent(manifest.project.id)}/${encodeURIComponent(manifest.version)}/pages/${encodeURIComponent(slug)}`);
   const page=state.data?.page;
+  const index=(manifest.pages||[]).findIndex(page=>page.slug===slug);
+  const previous=manifest.pages?.[index-1],next=manifest.pages?.[index+1];
   if(state.loading)return <p className="published-loading" role="status">Loading the guide…</p>;
   if(state.error)return <EmptyState error={state.error} title={state.error.status===404?'That guide is not in this version.':undefined}/>;
   if(!page)return null;
-  return <><h1>{page.title}</h1><Revision manifest={manifest} source={{path:page.sourcePath}}/><PublishedHtml html={page.html} fallback={page.markdown} project={manifest.project.id} version={manifest.version}/></>;
+  return <><h1>{page.title}</h1><Revision manifest={manifest} source={{path:page.sourcePath}}/><MarkdownActions markdown={page.markdown} filename={`${manifest.project.id}-${manifest.version}-${slug}.md`}/><PublishedHtml html={page.html} fallback={page.markdown} title={page.title} project={manifest.project.id} version={manifest.version}/><nav className="published-guide-pagination" aria-label="Adjacent guides">{previous&&<Link to={`${docBase(manifest.project.id,manifest.version)}/${previous.slug}`}><small>Previous guide</small><span>← {previous.title}</span></Link>}{next&&<Link className="next" to={`${docBase(manifest.project.id,manifest.version)}/${next.slug}`}><small>Next guide</small><span>{next.title} →</span></Link>}</nav></>;
 }
 
 function PackageSearch({manifest}) {
   const [query,setQuery]=useState('');
+  const [active,setActive]=useState(0);
+  const [expanded,setExpanded]=useState(false);
+  const id=useId();
   const navigate=useNavigate();
-  const symbols=manifest.api?.symbols || [];
-  const matches=query.trim()?[
-    ...(manifest.pages || []).filter(page=>`${page.title} ${page.slug}`.toLowerCase().includes(query.trim().toLowerCase())).map(page=>({id:page.slug,label:page.title,kind:'Guide',to:`${docBase(manifest.project.id,manifest.version)}/${encodeURIComponent(page.slug)}`})),
-    ...symbols.filter(symbol=>symbolSearch(symbol,query)).map(symbol=>({id:symbol.id,label:symbol.qualifiedName || symbol.name,kind:kindLabel(symbol.kind),to:apiLink(manifest.project.id,manifest.version,symbol.id)})),
-  ]:[];
-  return <form className="published-package-search" role="search" aria-label="Search this documentation version" onSubmit={event=>{event.preventDefault();if(matches[0]){navigate(matches[0].to);setQuery('');}}}><label htmlFor="published-package-search">Search this version</label><input id="published-package-search" type="search" placeholder="Guides, types, members…" value={query} onChange={event=>setQuery(event.target.value)} autoComplete="off"/>{query.trim()&&<div className="published-package-results" role="region" aria-label="Version search results"><p role="status">{matches.length} {matches.length===1?'match':'matches'} · Enter opens the first</p>{matches.slice(0,20).map(match=><Link key={`${match.kind}-${match.id}`} to={match.to} onClick={()=>setQuery('')}><small>{match.kind}</small><span>{match.label}</span></Link>)}{matches.length>20&&<Link to={`${apiLink(manifest.project.id,manifest.version)}?q=${encodeURIComponent(query)}`} onClick={()=>setQuery('')}>Search the full API index →</Link>}</div>}</form>;
+  const {loading,data,error}=useDocumentationSearch({query,project:manifest.project.id,version:manifest.version,limit:12});
+  const matches=data?.results||[];
+  const show=expanded&&query.trim().length>=2;
+  useEffect(()=>setActive(0),[query,data]);
+  const choose=match=>{if(match){navigate(match.to);setQuery('');setExpanded(false);}};
+  useEffect(()=>{if(show)document.getElementById(`${id}-result-${active}`)?.scrollIntoView({block:'nearest'});},[active,data,show,id]);
+  const keyDown=event=>{
+    if(event.key==='ArrowDown'){event.preventDefault();setExpanded(true);setActive(value=>Math.min(value+1,Math.max(matches.length-1,0)));}
+    else if(event.key==='ArrowUp'){event.preventDefault();setActive(value=>Math.max(value-1,0));}
+    else if(event.key==='Escape'){event.preventDefault();setExpanded(false);}
+  };
+  return <form className="published-package-search" role="search" aria-label="Search this documentation version" onKeyDown={keyDown} onSubmit={event=>{event.preventDefault();choose(matches[active]);}}><label htmlFor={`${id}-input`}>Search this version</label><input id={`${id}-input`} type="search" placeholder="Words, types, members…" value={query} onChange={event=>{setQuery(event.target.value);setExpanded(true);}} onFocus={()=>setExpanded(true)} autoComplete="off" maxLength={120} role="combobox" aria-autocomplete="list" aria-expanded={show} aria-controls={`${id}-results`} aria-activedescendant={show&&matches[active]?`${id}-result-${active}`:undefined}/>{show&&<div className="published-package-results"><p role="status">{loading?'Searching this version…':error?'Search is unavailable.':`${matches.length}${data?.truncated?'+':''} results · ↑ ↓ to move`}</p>{error&&<p>{error.message}</p>}<div id={`${id}-results`} role="listbox" aria-label="Version search results">{matches.map((match,index)=><button type="button" tabIndex={-1} role="option" aria-selected={active===index} id={`${id}-result-${index}`} key={`${match.kind}-${match.id}`} onMouseMove={()=>setActive(index)} onClick={()=>choose(match)}><small>{match.kind==='guide'?'Guide':kindLabel(match.symbolKind)}</small><span>{match.title}</span>{match.snippet&&<em>{match.snippet}</em>}</button>)}</div>{!loading&&!error&&!matches.length&&<p>Try a phrase from a guide, or a class or method name.</p>}</div>}</form>;
 }
 
 export default function PublishedDocs() {
@@ -116,6 +132,8 @@ export default function PublishedDocs() {
   const manifest=state.data;
   const selectedSymbol=new URLSearchParams(location.search).get('symbol');
   const [navOpen,setNavOpen]=useState(false);
+  const articleRef=useRef(null);
+  const outline=useReaderOutline(articleRef,`${project}/${version}/${slug||''}/${selectedSymbol||''}/${state.loading}`);
   useEffect(()=>{setNavOpen(false);},[location.pathname,location.search]);
   useEffect(()=>{
     if(!manifest?.project)return;
@@ -126,5 +144,21 @@ export default function PublishedDocs() {
   if(state.loading)return <div className="container published-status-page"><p className="published-loading" role="status">Loading this documentation version…</p></div>;
   if(state.error || !manifest?.project)return <div className="container published-status-page"><p className="section-label">DOCUMENTATION / {project}</p><EmptyState error={state.error}/></div>;
   const base=docBase(project,version);
-  return <div className="published-docs-shell"><button type="button" className="published-mobile-nav" aria-expanded={navOpen} aria-controls="published-docs-nav" onClick={()=>setNavOpen(value=>!value)}>{manifest.project.name} / {version}<span>{navOpen?'Close −':'Browse +'}</span></button><aside id="published-docs-nav" className={`published-docs-sidebar ${navOpen?'open':''}`} aria-label="Versioned documentation navigation"><DocsProjectSwitcher currentProject={project} currentVersion={version}/><PackageSearch manifest={manifest}/><p className="sidebar-label">THIS VERSION</p><Link className={!slug?'active':''} aria-current={!slug?'page':undefined} to={base}>Overview</Link><p className="sidebar-label">GUIDES</p>{(manifest.pages || []).map(page=><Link className={slug===page.slug?'active':''} aria-current={slug===page.slug?'page':undefined} key={page.slug} to={`${base}/${encodeURIComponent(page.slug)}`}>{page.title}</Link>)}{!manifest.pages?.length&&<p className="published-nav-empty">No guides in this package.</p>}<p className="sidebar-label">REFERENCE</p><Link className={slug==='api'?'active':''} aria-current={slug==='api'?'page':undefined} to={apiLink(project,version)}>API reference <span>{manifest.api?.symbols?.length || 0}</span></Link><Link to="/docs/projects">All project documentation ↗</Link></aside><article className="docs-content published-docs-content"><nav className="breadcrumbs" aria-label="Breadcrumb"><Link to="/docs/projects">Docs</Link><span>/</span><Link to={base}>{manifest.project.name}</Link><span>/</span><span>{version}</span>{slug&&<><span>/</span><span>{slug==='api'?'API':manifest.pages?.find(page=>page.slug===slug)?.title || slug}</span></>}</nav>{!slug?<PackageOverview manifest={manifest}/>:slug==='api'?selectedSymbol?<ApiSymbol key={selectedSymbol} manifest={manifest} id={selectedSymbol}/>:<ApiIndex manifest={manifest}/>:<Guide key={slug} manifest={manifest} slug={slug}/>}<div className="published-package-footer"><Link to={base}>← {manifest.project.name} {version}</Link><span>{version==='main'?'Development snapshots can change.':'This release documentation is preserved.'}</span></div></article></div>;
+  return <div className="published-docs-shell">
+    <button type="button" className="published-mobile-nav" aria-expanded={navOpen} aria-controls="published-docs-nav" onClick={()=>setNavOpen(value=>!value)}>{manifest.project.name} / {version}<span>{navOpen?'Close −':'Browse +'}</span></button>
+    <aside id="published-docs-nav" className={`published-docs-sidebar ${navOpen?'open':''}`} aria-label="Versioned documentation navigation">
+      <DocsProjectSwitcher currentProject={project} currentVersion={version}/><PackageSearch manifest={manifest}/>
+      <p className="sidebar-label">THIS VERSION</p><Link className={!slug?'active':''} aria-current={!slug?'page':undefined} to={base}>Overview</Link>
+      <p className="sidebar-label">GUIDES</p>{(manifest.pages || []).map(page=><Link className={slug===page.slug?'active':''} aria-current={slug===page.slug?'page':undefined} key={page.slug} to={`${base}/${encodeURIComponent(page.slug)}`}>{page.title}</Link>)}{!manifest.pages?.length&&<p className="published-nav-empty">No guides in this package.</p>}
+      <p className="sidebar-label">SOURCE REFERENCE</p><Link className={slug==='api'?'active':''} aria-current={slug==='api'?'page':undefined} to={apiLink(project,version)}>Java API <span>{manifest.api?.symbols?.length || 0}</span></Link>
+      {project==='relay'&&<><p className="sidebar-label">RELAY WORKSHOP</p><Link to="/docs/relay">Documentation home</Link><Link to="/docs/quickstart">Current setup guide</Link><Link to="/api">Dashboard HTTP API</Link><Link to="/lab/relay">Relay Lab</Link></>}
+      <Link to="/docs/projects">All project documentation ↗</Link>
+    </aside>
+    <ReaderOutline {...outline}/>
+    <article ref={articleRef} className="docs-content published-docs-content">
+      <nav className="breadcrumbs" aria-label="Breadcrumb"><Link to="/docs/projects">Docs</Link><span>/</span><Link to={project==='relay'?'/docs/relay':base}>{manifest.project.name}</Link><span>/</span><Link to={base}>{version}</Link>{slug&&<><span>/</span><span>{slug==='api'?'Java API':manifest.pages?.find(page=>page.slug===slug)?.title || slug}</span></>}</nav>
+      {!slug?<PackageOverview manifest={manifest}/>:slug==='api'?selectedSymbol?<ApiSymbol key={selectedSymbol} manifest={manifest} id={selectedSymbol}/>:<ApiIndex manifest={manifest}/>:<Guide key={slug} manifest={manifest} slug={slug}/>}
+      <div className="published-package-footer"><Link to={project==='relay'?'/docs/relay':base}>← {manifest.project.name} documentation</Link><span>{version==='main'?'Development snapshots can change.':'This release documentation is preserved.'}</span></div>
+    </article>
+  </div>;
 }

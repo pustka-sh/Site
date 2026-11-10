@@ -16,7 +16,9 @@ export default function Footer() {
             <span className="footer-head">WORKSHOP</span>
             <Link to="/projects">Projects</Link>
             <Link to="/docs/projects">Documentation</Link>
-            <Link to="/api">API reference</Link>
+            <Link to="/docs/relay">Relay docs home</Link>
+            <Link to="/api">Dashboard API</Link>
+            <Link to="/lab/relay">Relay Lab</Link>
             <Link to="/docs/configuration">Config builder</Link>
             <Link to="/changelog">Changelog</Link>
             <Link to="/help">Help</Link>

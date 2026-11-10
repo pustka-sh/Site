@@ -46,6 +46,13 @@ test('signed documentation publishing through Express', async t=>{
     assert.equal((await fetch(base+'/docs/relay/v99.0.0')).status,404);
     assert.equal((await fetch(base+'/api/site/docs/relay/v99.0.0')).status,404);
     assert.equal((await fetch(base+'/api/site/docs/relay/main/api?symbol=missing')).status,404);
+    const search=await(await fetch(base+'/api/site/docs/search?q=Documented&project=relay&version=main')).json();
+    assert.equal(search.scope.version,'main');assert.equal(search.results[0].kind,'guide');assert.match(search.results[0].snippet,/Documented behavior/);
+    assert.equal((await fetch(base+'/api/site/docs/search?q=x')).status,400);
+    assert.equal((await fetch(base+'/api/site/docs/search?q=hello&version=main')).status,400);
+    assert.equal((await fetch(base+'/api/site/docs/search?q=hello&project=missing')).status,404);
+    assert.equal((await fetch(base+'/docs/introduction')).status,200);
+    assert.equal((await fetch(base+'/lab/relay')).status,200);
   });
   await t.test('rejects tampering, stale signatures and browser cross-origin attempts without a valid key',async()=>{
     const body=Buffer.from(JSON.stringify(packageFor()));

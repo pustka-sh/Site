@@ -19,6 +19,9 @@ if(persistence){
  for(const match of html.matchAll(/(?:src|href)="(\/assets\/[^"\s]+)"/g))assert.equal((await fetch(base+match[1])).status,200);
  assert.equal((await fetch(base+'/api')).status,200);
  assert.equal((await fetch(base+'/docs/projects')).status,200);
+ assert.equal((await fetch(base+'/docs/relay')).status,200);
+ assert.equal((await fetch(base+'/docs/introduction')).status,200);
+ const lab=await fetch(base+'/lab/relay');assert.equal(lab.status,200);assert.match(await lab.text(),/Relay Lab/);
  const docs=await fetch(base+'/api/site/docs/projects');assert.equal(docs.status,200);assert.ok(Array.isArray((await docs.json()).projects));
  assert.equal((await fetch(base+'/api/site/content')).status,200);
  assert.equal((await fetch(base+'/feed.xml')).status,200);

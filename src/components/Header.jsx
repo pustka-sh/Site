@@ -7,7 +7,8 @@ import { ORG } from '../data/site.js';
 const links = [
   { to: '/projects', label: 'Projects', match: '/projects' },
   { to: '/docs/projects', label: 'Docs', match: '/docs' },
-  { to: '/api', label: 'API', match: '/api' },
+  { to: '/lab/relay', label: 'Lab', match: '/lab' },
+  { to: '/api', label: 'Dashboard API', match: '/api', extra: true },
   { to: '/changelog', label: 'Changelog', match: '/changelog', extra: true },
   { to: '/help', label: 'Help', match: '/help', extra: true },
   { to: '/tools', label: 'Workshop tools', match: '/tools', extra: true },

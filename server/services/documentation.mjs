@@ -6,6 +6,7 @@ import GithubSlugger from 'github-slugger';
 import katex from 'katex';
 import sanitizeHtml from 'sanitize-html';
 import { z } from 'zod';
+import { buildDocumentationSearchIndex, searchDocumentationIndex } from './documentation-search.mjs';
 
 export const MAX_PACKAGE_BYTES = 8 * 1024 * 1024;
 export const isProjectId = value => typeof value === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(value);
@@ -131,6 +132,18 @@ export function createDocumentationService({dataDir,projects,keys={},now=Date.no
   if(!keys||typeof keys!=='object'||Array.isArray(keys))throw new Error('Documentation publication keys must be a project map.');
   for(const [id,key]of Object.entries(keys))if(!registry.has(id)||typeof key!=='string'||key.length<32||key.length>512)throw new Error('Each documentation publication key must belong to a registered project and contain at least 32 characters.');
   const root=path.resolve(dataDir,'documentation');const queues=new Map();const rendered=new Map();
+  const searchIndexes=new Map();let searchBytes=0;
+  function searchIndex(record){
+    const key=`${record.package.project.id}/${record.package.version}/${record.digest}`;
+    const cached=searchIndexes.get(key);
+    if(cached){searchIndexes.delete(key);searchIndexes.set(key,cached);return cached.entries;}
+    const entries=buildDocumentationSearchIndex(record.package),bytes=Buffer.byteLength(JSON.stringify(entries));
+    if(bytes<=32*1024*1024){
+      while(searchIndexes.size>=4||searchBytes+bytes>32*1024*1024){const oldest=searchIndexes.keys().next().value;searchBytes-=searchIndexes.get(oldest).bytes;searchIndexes.delete(oldest);}
+      searchIndexes.set(key,{entries,bytes});searchBytes+=bytes;
+    }
+    return entries;
+  }
   // Historical packages can be large: retain at most four validated snapshots and 32 MiB of serialized input.
   const records=new Map(),recordLoads=new Map(),versionMetadata=new Map(),versionLoads=new Map(),metadataRevisions=new Map(),snapshotMetadata=new Map();let recordBytes=0;
   function forgetRecord(file){const cached=records.get(file);if(cached){recordBytes-=cached.bytes;records.delete(file);}}
@@ -242,6 +255,19 @@ export function createDocumentationService({dataDir,projects,keys={},now=Date.no
     queues.set(queueKey,task);task.finally(()=>{if(queues.get(queueKey)===task)queues.delete(queueKey);}).catch(()=>{});return task;
   }
   return {
+    async search({query,project=null,version=null,limit=20}={}){
+      if(typeof query!=='string'||query.trim().length<2||query.length>120||!Number.isInteger(limit)||limit<1||limit>30||(version&&!project))throw error(400,'INVALID_DOCS_SEARCH','Enter 2–120 characters and choose a project before choosing a version.');
+      if(project)findProject(project);
+      if(version&&!isDocsVersion(version))throw error(404,'DOCS_VERSION_NOT_FOUND','This documentation version is not available.');
+      const results=[];let resolvedVersion=version;
+      for(const id of project?[project]:registry.keys()){
+        const selected=version||(await versionIndex(id)).defaultVersion;if(!selected)continue;
+        if(project)resolvedVersion=selected;
+        const record=await readRecord(id,selected);results.push(...searchDocumentationIndex(searchIndex(record),query,limit+1));
+      }
+      results.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title)||a.id.localeCompare(b.id));
+      return {query:query.trim(),scope:{project,version:project?resolvedVersion:null},results:results.slice(0,limit),truncated:results.length>limit};
+    },
     async projects(){const result=[];for(const project of registry.values()){const {versions,defaultVersion}=await versionIndex(project.id);result.push({...project,versions,defaultVersion});}return {projects:result};},
     versions:versionIndex,
     async manifest(id,version){const record=await readRecord(id,version),data=record.package;return {schemaVersion:1,project:data.project,version:data.version,source:data.source,generatedAt:data.generatedAt,publishedAt:record.publishedAt,pages:data.pages.map(({markdown,...page})=>page),api:{language:data.api.language,generator:data.api.generator,symbols:data.api.symbols.map(({id,kind,name,qualifiedName,owner,signature,summary,deprecated})=>({id,kind,name,qualifiedName,owner,signature,summary,deprecated}))}};},

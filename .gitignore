@@ -7,6 +7,6 @@
 Thumbs.db
 node_modules/
 *.log
-data/
+/data/
 coverage/
 .test-share-id

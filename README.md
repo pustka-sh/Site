@@ -49,6 +49,14 @@ The project documentation reader at `/docs/projects` accepts versioned Markdown 
 
 See [authoring, publication and Docker setup](docs/docs-as-code.md) and the [package contract](docs/docs-as-code-contract.md). Running all tests also requires a JDK 21+ toolchain. The Docker builder and GitHub build workflow provide it; Java is absent from the production image.
 
+Relay's documentation home at `/docs/relay` brings setup, integration guides, versioned Java reference, dashboard API and the Lab together. The original introduction is at `/docs/introduction`; old `/docs/relay#section` links continue there. Published guides include a heading outline and permalinks, syntax-highlighted code copying, original Markdown copy/download, and previous/next navigation.
+
+`Ctrl K` and the versioned reader search guide bodies and authored API comments through the same-origin search endpoint. Project/version filters, ranked exact symbol names, snippets, keyboard navigation and cancellation keep results tied to the selected code. Static hosting retains curated-page search when the documentation service is unavailable.
+
+Project CI can run `npm run docs:check -- --root <checkout> --package <package.json> --manifest <manifest.json> --report <quality.json>` to validate local links, source lines and checked examples, and report missing API documentation. See [documentation quality checks](docs/docs-quality.md). Relay's Gradle task compiles declared Java examples against its actual proxy classpath before publishing.
+
+`/lab/relay` is a local educational simulator: step through a sample handshake, identity, routing, forwarding and play session, change settings/failure scenarios, and inspect a byte-accurate handshake. It opens no Minecraft connections and verifies no real accounts. See [Lab scope and source provenance](docs/relay-lab.md).
+
 ## Host
 
 Docker runs Express, which serves `dist/` and `/api/site/*` together. `/api` remains the Relay API documentation page. `npm run build` also produces a static `dist/` with per-route HTML and an RSS feed; static hosting retains the existing pages and local config builder, while server-dependent tools explain when the service is unavailable.
