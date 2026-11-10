@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://pustka.sh/</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/projects</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/changelog</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/help</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/docs/relay</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/docs/quickstart</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/docs/compatibility</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/docs/backend</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/docs/client</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/docs/packets</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/api</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/docs/configuration</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://pustka.sh/docs/protocol-ids</loc><lastmod>2026-11-09</lastmod></url>
+  <url><loc>https://pustka.sh/</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/projects</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/changelog</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/help</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/tools</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/releases</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/live</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/docs/relay</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/docs/quickstart</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/docs/compatibility</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/docs/backend</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/docs/client</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/docs/packets</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/api</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/docs/configuration</loc><lastmod>2026-11-10</lastmod></url>
+  <url><loc>https://pustka.sh/docs/protocol-ids</loc><lastmod>2026-11-10</lastmod></url>
 </urlset>

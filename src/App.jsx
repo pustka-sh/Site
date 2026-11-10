@@ -14,6 +14,7 @@ import Home from './pages/Home.jsx';
 import { useKonami } from './hooks/useKonami.js';
 import { useTheme } from './hooks/useTheme.js';
 import { pages } from './data/site.js';
+import { SharedConfig } from './components/ConfigBuilder.jsx';
 
 // Everything but the home page loads on demand, so the first visit downloads less.
 const Projects = lazy(() => import('./pages/Projects.jsx'));
@@ -21,6 +22,9 @@ const Docs = lazy(() => import('./pages/Docs.jsx'));
 const Changelog = lazy(() => import('./pages/Changelog.jsx'));
 const Help = lazy(() => import('./pages/Help.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
+const Tools = lazy(() => import('./pages/Tools.jsx'));
+const Releases = lazy(() => import('./pages/Releases.jsx'));
+const Live = lazy(() => import('./pages/Live.jsx'));
 
 function Page({ children }) {
   return (
@@ -115,6 +119,10 @@ export default function App() {
               <Route path="/projects" element={<Page><Projects /></Page>} />
               <Route path="/changelog" element={<Page><Changelog /></Page>} />
               <Route path="/help" element={<Page><Help /></Page>} />
+              <Route path="/tools" element={<Page><Tools /></Page>} />
+              <Route path="/releases" element={<Page><Releases /></Page>} />
+              <Route path="/live" element={<Page><Live /></Page>} />
+              <Route path="/c/:id" element={<Page><SharedConfig /></Page>} />
               <Route path="/docs" element={<Navigate to="/docs/relay" replace />} />
               <Route path="/docs/api" element={<Navigate to="/api" replace />} />
               <Route path="/docs/:slug" element={<Page><Docs /></Page>} />

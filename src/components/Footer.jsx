@@ -20,6 +20,10 @@ export default function Footer() {
             <Link to="/docs/configuration">Config builder</Link>
             <Link to="/changelog">Changelog</Link>
             <Link to="/help">Help</Link>
+            <Link to="/tools">Workshop tools</Link>
+            <Link to="/releases">Releases</Link>
+            <Link to="/live">Live network</Link>
+            <a href="/feed.xml">RSS feed</a>
           </div>
           <div className="footer-links">
             <span className="footer-head">ELSEWHERE</span>

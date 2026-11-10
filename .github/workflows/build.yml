@@ -11,7 +11,23 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm test
       - run: npm run build
+      - run: docker build --tag pustka-site:ci .
+      - name: Start production container
+        run: docker run -d --name pustka-ci -p 127.0.0.1:3000:3000 -e DOCS_SYNC_ENABLED=false -v pustka-ci-data:/data pustka-site:ci
+      - name: Smoke-test production container
+        run: node scripts/smoke.mjs http://127.0.0.1:3000
+      - name: Verify persistent shares after restart
+        run: |
+          docker restart pustka-ci
+          node scripts/smoke.mjs http://127.0.0.1:3000 --persistence
+      - name: Container logs and cleanup
+        if: always()
+        run: |
+          docker logs pustka-ci || true
+          docker rm -f pustka-ci || true
+          docker volume rm pustka-ci-data || true

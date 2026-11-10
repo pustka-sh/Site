@@ -10,6 +10,9 @@ const links = [
   { to: '/api', label: 'API', match: '/api' },
   { to: '/changelog', label: 'Changelog', match: '/changelog', extra: true },
   { to: '/help', label: 'Help', match: '/help', extra: true },
+  { to: '/tools', label: 'Workshop tools', match: '/tools', extra: true },
+  { to: '/releases', label: 'Releases', match: '/releases', extra: true },
+  { to: '/live', label: 'Live network', match: '/live', extra: true },
 ];
 
 const githubIcon = (

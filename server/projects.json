@@ -1,0 +1,9 @@
+[
+  {
+    "id": "relay",
+    "name": "Relay",
+    "description": "A Minecraft server proxy built in Java.",
+    "category": "Minecraft proxy",
+    "repository": "https://github.com/pustka-sh/Relay"
+  }
+]

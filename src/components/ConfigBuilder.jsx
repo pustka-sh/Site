@@ -1,7 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import CodeBlock from './CodeBlock.jsx';
 import { useMedia } from '../hooks/useMedia.js';
+import { displayDate, siteApi, useCapabilities } from '../lib/siteApi.js';
 
 /*
  * Builds relay.toml from the keys in Relay's own relay.default.toml, plus the
@@ -64,6 +66,52 @@ const initial = () => ({
   admin: '',
   forcedHosts: [],
 });
+
+// A share contains settings only. No generated file or forwarding secret is sent.
+export function shareableSettings(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('These shared settings could not be read.');
+  const result = {};
+  const strings = { bind: 260, motd: 2000, tryList: 2000, admin: 64 };
+  for (const [key, max] of Object.entries(strings)) {
+    if (value[key] === undefined) continue;
+    if (typeof value[key] !== 'string' || value[key].length > max || value[key].includes('\0')) throw new Error('A setting is too long or has an invalid value.');
+    result[key] = value[key];
+  }
+  const booleans = ['onlineMode', 'showOnlineCount', 'secretInFile', 'clientApi', 'backendApi', 'fallback', 'interceptCommands', 'proxyProtocolSend', 'proxyProtocolReceive', 'dashboard'];
+  for (const key of booleans) {
+    if (value[key] === undefined) continue;
+    if (typeof value[key] !== 'boolean') throw new Error('A setting has an invalid value.');
+    result[key] = value[key];
+  }
+  for (const [key, min, max] of [['maxPlayers', 0, 1000000], ['compressionThreshold', -1, 1048576], ['compressionLevel', -1, 9], ['dashboardPort', 1024, 65535]]) {
+    if (value[key] === undefined) continue;
+    const n = Number(value[key]);
+    if (!Number.isInteger(n) || n < min || n > max) throw new Error('A numeric setting is outside its supported range.');
+    result[key] = n;
+  }
+  for (const [key, allowed] of [['forwardingMode', forwardingModes.map(([id]) => id)], ['balance', balances.map(([id]) => id)]]) {
+    if (value[key] === undefined) continue;
+    if (!allowed.includes(value[key])) throw new Error('A setting names an unsupported mode.');
+    result[key] = value[key];
+  }
+  if (value.servers !== undefined) {
+    if (!Array.isArray(value.servers) || value.servers.length < 1 || value.servers.length > 40) throw new Error('A shared config needs between 1 and 40 backends.');
+    result.servers = value.servers.map((server) => {
+      if (!server || typeof server.name !== 'string' || server.name.length > 64 || !/^[A-Za-z0-9_-]+$/.test(server.name) || typeof server.address !== 'string' || server.address.length > 260 || !validAddress(server.address)) throw new Error('A backend needs a valid name and address before sharing.');
+      const weight = Number(server.weight ?? 1);
+      if (!Number.isFinite(weight) || weight < 0.01 || weight > 10000) throw new Error('A backend weight is outside its supported range.');
+      return { name: server.name, address: server.address, weight };
+    });
+  }
+  if (value.forcedHosts !== undefined) {
+    if (!Array.isArray(value.forcedHosts) || value.forcedHosts.length > 40) throw new Error('A shared config supports at most 40 forced hosts.');
+    result.forcedHosts = value.forcedHosts.map((host) => {
+      if (!host || typeof host.host !== 'string' || host.host.length > 253 || typeof host.server !== 'string' || host.server.length > 64) throw new Error('A forced host has an invalid value.');
+      return { host: host.host, server: host.server };
+    });
+  }
+  return result;
+}
 
 function buildToml(c) {
   const L = [];
@@ -136,8 +184,8 @@ function buildToml(c) {
 function buildPaper(c) {
   const lines = ['# config/paper-global.yml — merge into the existing file on every backend', 'proxies:'];
   if (c.forwardingMode === 'modern') {
-    lines.push('  velocity:', '    enabled: true', '    online-mode: true', `    secret: '${c.secretInFile ? '<contents of forwarding.secret>' : c.secret}'`);
-  }
+    lines.push('  velocity:', '    enabled: true', `    online-mode: ${c.onlineMode}`, `    secret: '${c.secretInFile ? '<contents of forwarding.secret>' : c.secret}'`);
+  } else lines.push('  velocity:', '    enabled: false');
   lines.push(`  proxy-protocol: ${c.proxyProtocolSend}`);
   return `${lines.join('\n')}\n`;
 }
@@ -190,9 +238,44 @@ const Field = ({ label, hint, children }) => (
   </label>
 );
 
-export default function ConfigBuilder() {
+export default function ConfigBuilder({ sharedId } = {}) {
   const [c, setC] = useState(initial);
   const [tab, setTab] = useState('relay.toml');
+  const { capabilities } = useCapabilities();
+  const [shared, setShared] = useState({ loading: Boolean(sharedId), loaded: false, error: null });
+  const [sharing, setSharing] = useState(false);
+  const [share, setShare] = useState(null);
+  const [shareError, setShareError] = useState(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  useEffect(() => {
+    if (!sharedId) return undefined;
+    const controller = new AbortController();
+    setShared({ loading: true, loaded: false, error: null });
+    siteApi(`/configs/${encodeURIComponent(sharedId)}`, { signal: controller.signal }).then((data) => {
+      const settings = shareableSettings(data.settings);
+      const fresh = initial();
+      setC({ ...fresh, ...settings, secret: fresh.secret });
+      setShare(null);
+      setShared({ loading: false, loaded: true, error: null });
+    }).catch((error) => { if (error.name !== 'AbortError') setShared({ loading: false, loaded: false, error: error.message }); });
+    return () => controller.abort();
+  }, [sharedId]);
+  const createShare = async () => {
+    setSharing(true);
+    setShareError(null);
+    setShareCopied(false);
+    try {
+      const result = await siteApi('/configs', { method: 'POST', body: { settings: shareableSettings(c) } });
+      const url = new URL(result.url || `/c/${result.id}`, location.origin);
+      if (!['https:', 'http:'].includes(url.protocol)) throw new Error('The share link could not be read.');
+      setShare({ url: url.href, expiresAt: result.expiresAt });
+    } catch (error) { setShareError(error.message); }
+    finally { setSharing(false); }
+  };
+  const copyShare = async () => {
+    try { await navigator.clipboard.writeText(share.url); setShareCopied(true); }
+    catch { setShareError('Select the link above to copy it.'); }
+  };
   const set = (key) => (value) => setC((prev) => ({ ...prev, [key]: value }));
   const setServer = (i, key, value) => setC((prev) => ({ ...prev, servers: prev.servers.map((s, j) => (j === i ? { ...s, [key]: value } : s)) }));
   const setHost = (i, key, value) => setC((prev) => ({ ...prev, forcedHosts: prev.forcedHosts.map((h, j) => (j === i ? { ...h, [key]: value } : h)) }));
@@ -240,8 +323,19 @@ export default function ConfigBuilder() {
   const panelId = (id) => (id === 'files' ? 'output' : 'cb-panel-settings');
   const panel = (id) => (stacked ? { role: 'tabpanel', id: panelId(id), 'aria-labelledby': `cb-view-${id}`, hidden: view !== id } : {});
 
+  if (sharedId && shared.loading) return <p className="service-message shared-config-loading" role="status">Loading shared settings…</p>;
+  if (sharedId && shared.error) return <div className="shared-config-loading"><p className="tool-error" role="alert">{shared.error}</p><Link className="text-link" to="/docs/configuration">Start a new configuration →</Link></div>;
+
   return (
     <div className={`config-builder ${stacked ? 'is-stacked' : ''}`} id="builder" ref={rootRef}>
+      {(sharedId || capabilities?.configSharing) && <aside className="cb-share" data-md-skip aria-live="polite">
+        {shared.loading && <p role="status">Loading shared settings…</p>}
+        {shared.error && <p className="tool-error" role="alert">{shared.error} Your current builder settings have not been replaced.</p>}
+        {shared.loaded && <p>Shared settings loaded. A new forwarding secret was generated in this browser; the original secret was never shared.</p>}
+        {capabilities?.configSharing && <><div className="cb-share-actions"><button type="button" onClick={createShare} disabled={sharing || Boolean(errors) || shared.loading}>{sharing ? 'Creating link…' : 'Share settings →'}</button><span className="field-hint">Forwarding secret excluded</span></div><p>Anyone with the link can read the shared settings. Generated files and forwarding secrets stay in your browser.</p></>}
+        {share && <><div className="cb-share-link"><input aria-label="Shared config link" readOnly value={share.url} onFocus={(event) => event.target.select()} /><button type="button" onClick={copyShare}>{shareCopied ? 'Copied' : 'Copy link'}</button></div>{share.expiresAt && <p>Link expires {displayDate(share.expiresAt)}.</p>}</>}
+        {shareError && <p className="tool-error" role="alert">{shareError}</p>}
+      </aside>}
       {stacked && (
         <div className="cb-switcher" data-md-skip>
           <div className="cb-switcher-tabs" role="tablist" aria-label="Config builder view" onKeyDown={onViewKey}>
@@ -312,7 +406,7 @@ export default function ConfigBuilder() {
                 <motion.div key={i} className="cb-server" layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}>
                   <input aria-label="Server name" placeholder="name" value={s.name} onChange={(e) => setServer(i, 'name', e.target.value)} spellCheck="false" />
                   <input aria-label="Address" placeholder="127.0.0.1:25566" value={s.address} onChange={(e) => setServer(i, 'address', e.target.value)} spellCheck="false" />
-                  {c.balance === 'weighted' && <input aria-label="Weight" type="number" min="1" className="cb-weight" value={s.weight} onChange={(e) => setServer(i, 'weight', e.target.value)} />}
+                  {c.balance === 'weighted' && <input aria-label="Weight" type="number" min="0.01" max="10000" step="0.01" className="cb-weight" value={s.weight} onChange={(e) => setServer(i, 'weight', e.target.value)} />}
                   <button type="button" className="cb-remove" aria-label={`Remove ${s.name || 'server'}`} onClick={() => setC((p) => ({ ...p, servers: p.servers.filter((_, j) => j !== i) }))}>×</button>
                 </motion.div>
               ))}
@@ -337,7 +431,7 @@ export default function ConfigBuilder() {
           <Toggle label="intercept-commands" hint="Relay claims /server, /glist, /find and /send." checked={c.interceptCommands} onChange={set('interceptCommands')} />
           <Toggle label="Dashboard companion" hint="Adds [control] and [companions.dashboard]." checked={c.dashboard} onChange={set('dashboard')} />
           {c.dashboard && (
-            <Field label="RELAY_DASHBOARD_PORT"><input type="number" value={c.dashboardPort} onChange={(e) => set('dashboardPort')(e.target.value)} /></Field>
+            <Field label="RELAY_DASHBOARD_PORT"><input type="number" min="1024" max="65535" value={c.dashboardPort} onChange={(e) => set('dashboardPort')(e.target.value)} /></Field>
           )}
           <Field label="Admin player" hint="Optional. Granted relay.* by username or UUID.">
             <input placeholder="yourname" value={c.admin} onChange={(e) => set('admin')(e.target.value)} spellCheck="false" />
@@ -388,4 +482,9 @@ export default function ConfigBuilder() {
       </div>
     </div>
   );
+}
+
+export function SharedConfig() {
+  const { id } = useParams();
+  return <div className="container workshop-page shared-config-page"><header className="page-intro"><p className="section-label">RELAY / SHARED SETTINGS</p><h1>A config to build from.</h1><p>Open the shared settings, review them, and generate your own files.</p></header><div className="shared-config-notice">The forwarding secret is never part of a share. Loading a link creates a fresh secret, which must match your own backend configuration.</div><ConfigBuilder sharedId={id} /><p><Link className="text-link" to="/docs/configuration">Read the configuration guide →</Link></p></div>;
 }

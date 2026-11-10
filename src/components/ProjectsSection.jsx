@@ -3,6 +3,7 @@ import Topology from './Topology.jsx';
 import Reveal, { WordReveal } from './Reveal.jsx';
 import External from './External.jsx';
 import { ORG, SOURCE } from '../data/site.js';
+import ProjectStats from './ProjectStats.jsx';
 
 // Compact facts about Relay; the details live on the linked reference pages.
 const meta = [
@@ -29,6 +30,7 @@ function ProjectRegister() {
               </div>
             ))}
           </dl>
+          <ProjectStats />
           <div className="project-links">
             <Link to="/docs/relay" className="arrow-link">Read the docs <span>→</span></Link>
             <Link to="/docs/configuration" className="arrow-link">Build a config <span>→</span></Link>

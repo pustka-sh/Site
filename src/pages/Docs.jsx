@@ -5,6 +5,7 @@ import External from '../components/External.jsx';
 import { Callout } from '../components/CodeBlock.jsx';
 import { useToast } from '../components/Toast.jsx';
 import NotFound from './NotFound.jsx';
+import DocsFeedback from '../components/DocsFeedback.jsx';
 import { docBodies, ApiChoices } from './docContent.jsx';
 import { useRelayContent } from '../lib/useRelayContent.js';
 import { toMarkdown } from '../lib/toMarkdown.js';
@@ -241,6 +242,7 @@ export default function Docs({ api = false }) {
             ? <Upstream doc={upstreamDoc} data={data} label={meta.upstream.label} only={meta.upstream.only} />
             : <div className="skeleton upstream-skeleton" aria-busy="true" />)}
         </motion.div>
+        <DocsFeedback key={key} page={docPath(key)} title={meta.title} />
         <div className="doc-source"><span>Continue at the source</span><External href={meta.source}>{meta.sourceLabel} ↗</External></div>
         <nav className="doc-pagination" aria-label="Adjacent documentation">
           {previous && <Link to={docPath(previous)}><span><small>PREVIOUS</small>← {docTitle(previous)}</span></Link>}

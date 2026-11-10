@@ -12,9 +12,9 @@
  * finished HTML. Raw HTML inside the markdown is escaped, not trusted.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, existsSync, realpathSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, posix } from 'node:path';
+import { join, dirname, basename, posix, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Marked } from 'marked';
 import GithubSlugger, { slug as slugOf } from 'github-slugger';
@@ -24,7 +24,8 @@ const REPO = 'https://github.com/pustka-sh/relay';
 const BLOB = 'https://github.com/pustka-sh/Relay/blob/main';
 const TREE = 'https://github.com/pustka-sh/Relay/tree/main';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const out = join(root, 'src/content/relay.json');
+// Runtime sync writes into the persistent data volume, never the image's source tree.
+const out = process.env.OUTPUT_PATH ? resolve(process.env.OUTPUT_PATH) : join(root, 'src/content/relay.json');
 
 // Upstream markdown files that have a page of their own on this site.
 const docRoutes = {
@@ -46,7 +47,7 @@ const readmeAnchorRoute = Object.fromEntries(
   Object.entries(readmeSections).flatMap(([page, names]) => names.map((n) => [slugOf(n), readmePageRoute[page]])),
 );
 
-const git = (dir, ...args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+const git = (dir, ...args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, timeout: 30_000 });
 
 let dir = process.env.RELAY_DIR;
 let temp = null;
@@ -54,11 +55,16 @@ if (!dir) {
   temp = mkdtempSync(join(tmpdir(), 'relay-sync-'));
   dir = join(temp, 'relay');
   console.log(`Cloning ${REPO} …`);
-  execFileSync('git', ['clone', '--quiet', REPO, dir], { stdio: 'inherit', env: { ...process.env, GIT_LFS_SKIP_SMUDGE: '1' } });
+  execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'clone', '--quiet', '--single-branch', '--branch', 'main', REPO, dir], { stdio: 'inherit', timeout: 90_000, env: { ...process.env, GIT_LFS_SKIP_SMUDGE: '1', GIT_TERMINAL_PROMPT: '0' } });
 }
 
 try {
-  const read = (p) => readFileSync(join(dir, p), 'utf8');
+  const checkout = realpathSync(dir);
+  const read = (p) => {
+    const file = realpathSync(join(checkout, p));
+    if (!file.startsWith(checkout + sep) || statSync(file).size > 4 * 1024 * 1024) throw new Error('An upstream documentation file is invalid.');
+    return readFileSync(file, 'utf8');
+  };
   const commit = git(dir, 'rev-parse', 'HEAD').trim();
 
   /* ---------- markdown ---------- */
@@ -76,7 +82,9 @@ try {
     const fileDir = posix.dirname(file);
     const resolveLink = (href) => {
       if (!href) return { href: '#' };
-      if (/^[a-z]+:/i.test(href)) return { href, external: true };
+      // Upstream Markdown is content, not permission to execute a URL scheme.
+      if (/^[a-z][a-z\d+.-]*:/i.test(href)) return /^https?:\/\//i.test(href) ? { href, external: true } : { href: '#' };
+      if (href.startsWith('//')) return { href: '#' };
       if (href.startsWith('#')) {
         if (file !== 'README.md') return { href: `#${prefix}${href.slice(1)}` };
         const route = readmeAnchorRoute[href.slice(1)];
@@ -181,7 +189,7 @@ try {
 
   /* ---------- history ---------- */
   const SEP = '\x1f';
-  const log = git(dir, 'log', '--date=short', `--pretty=format:%H${SEP}%h${SEP}%ad${SEP}%P${SEP}%s`).trim().split('\n');
+  const log = git(dir, 'log', '-n', '500', '--date=short', `--pretty=format:%H${SEP}%h${SEP}%ad${SEP}%P${SEP}%s`).trim().split('\n');
   const changelog = log.map((line) => {
     const [hash, short, date, parents, subject] = line.split(SEP);
     return { hash, short, date, subject, merge: parents.trim().split(' ').length > 1 };
@@ -204,5 +212,9 @@ try {
   writeFileSync(out, `${JSON.stringify(data, null, 1)}\n`);
   console.log(`Wrote ${posix.relative(root, out)} — Relay ${commit.slice(0, 7)}, ${changelog.length} commits, ${versions.length} protocol versions.`);
 } finally {
-  if (temp && existsSync(temp)) rmSync(temp, { recursive: true, force: true });
+  if (temp && existsSync(temp)) {
+    const target = resolve(temp);
+    if (dirname(target) !== resolve(tmpdir()) || !basename(target).startsWith('relay-sync-')) throw new Error('Refusing to remove an unexpected temporary path.');
+    rmSync(target, { recursive: true, force: true });
+  }
 }

@@ -5,6 +5,8 @@ import App from './App.jsx';
 import './styles/base.css';
 import './styles/effects.css';
 import './styles/code.css';
+import './styles/backend.css';
+import './styles/integrations.css';
 
 // Old links used hash routes (pustka.sh/#/docs/relay). Keep them working.
 if (window.location.hash.startsWith('#/')) {
