@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast.jsx';
 import NotFound from './NotFound.jsx';
 import DocsFeedback from '../components/DocsFeedback.jsx';
 import DocsProjectSwitcher from '../components/DocsProjectSwitcher.jsx';
+import '../styles/docs-reading.css';
 import { docBodies, ApiChoices } from './docContent.jsx';
 import { useRelayContent } from '../lib/useRelayContent.js';
 import { toMarkdown } from '../lib/toMarkdown.js';
@@ -117,7 +118,8 @@ function Upstream({ doc, data, label, only }) {
 
 export default function Docs({ api = false }) {
   const { slug } = useParams();
-  const key = api ? 'api' : slug;
+  const navKey = api ? 'api' : slug;
+  const key = navKey === 'introduction' ? 'relay' : navKey;
   const meta = docMeta[key];
   const data = useRelayContent();
   const navigate = useNavigate();
@@ -151,7 +153,7 @@ export default function Docs({ api = false }) {
   useEffect(() => setMenuOpen(false), [key]);
 
   if (!meta) return <NotFound />;
-  const { previous, next } = docNeighbours(key);
+  const { previous, next } = docNeighbours(navKey);
   const Body = api ? ApiBody : docBodies[key];
   const jump = (id) => (e) => {
     e.preventDefault();
@@ -195,7 +197,7 @@ export default function Docs({ api = false }) {
   };
 
   const sidebarLink = (id) => {
-    const isActive = key === id;
+    const isActive = navKey === id;
     return (
       <Link key={id} to={docPath(id)} className={isActive ? 'active' : ''} aria-current={isActive ? 'page' : undefined}>
         {isActive && <motion.span layoutId="sidebar-active" className="sidebar-active" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
@@ -207,11 +209,13 @@ export default function Docs({ api = false }) {
   return (
     <div className={`docs-shell ${meta.wide ? 'docs-wide' : ''}`}>
       <button className="mobile-doc-nav" aria-expanded={menuOpen} aria-controls="docs-sidebar" onClick={() => setMenuOpen(!menuOpen)}>
-        Relay / {docTitle(key)} <span>{menuOpen ? 'Close −' : 'Browse +'}</span>
+        Relay / {docTitle(navKey)} <span>{menuOpen ? 'Close −' : 'Browse +'}</span>
       </button>
       <aside className={`docs-sidebar ${menuOpen ? 'open' : ''}`} id="docs-sidebar" aria-label="Documentation navigation">
         <DocsProjectSwitcher currentProject="relay" />
         <div className="docs-project">Relay <span>proxy</span></div>
+        <Link to="/docs/relay" className="docs-home-return">Documentation home →</Link>
+        <p className="docs-curated-label">CURRENT GUIDES <span>Updated with Relay’s main branch</span></p>
         {docGroups.map((g) => (
           <div key={g}>
             <p className="sidebar-label">{g}</p>
@@ -226,7 +230,7 @@ export default function Docs({ api = false }) {
       </aside>
       <article className={`docs-content ${api ? 'api-intro' : ''}`} ref={articleRef} onClick={onArticleClick}>
         <div className="breadcrumbs">
-          <Link to="/">pustka</Link><span>/</span><Link to="/docs/relay">Relay</Link><span>/</span>{api ? 'API' : docTitle(key)}
+          <Link to="/docs/projects">Docs</Link><span>/</span><Link to="/docs/relay">Relay</Link><span>/</span>{api ? 'Dashboard API' : docTitle(navKey)}
         </div>
         <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>{meta.title}</motion.h1>
         <motion.p className="lead" initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.08 }}>{meta.description}</motion.p>
@@ -244,7 +248,7 @@ export default function Docs({ api = false }) {
             ? <Upstream doc={upstreamDoc} data={data} label={meta.upstream.label} only={meta.upstream.only} />
             : <div className="skeleton upstream-skeleton" aria-busy="true" />)}
         </motion.div>
-        <DocsFeedback key={key} page={docPath(key)} title={meta.title} />
+        <DocsFeedback key={navKey} page={docPath(navKey)} title={meta.title} />
         <div className="doc-source"><span>Continue at the source</span><External href={meta.source}>{meta.sourceLabel} ↗</External></div>
         <nav className="doc-pagination" aria-label="Adjacent documentation">
           {previous && <Link to={docPath(previous)}><span><small>PREVIOUS</small>← {docTitle(previous)}</span></Link>}

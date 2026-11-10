@@ -1,0 +1,10 @@
+.palette-scope{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 24px 10px;border-bottom:1px solid var(--line)}
+.palette-scope label{min-width:0;font-size:9px;letter-spacing:.5px;color:var(--muted)}
+.palette-scope select{display:block;width:100%;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:0;background:var(--surface);color:var(--bone);font-size:11px;min-width:0}
+.palette-scope select:disabled{opacity:.7}
+.palette-search-status{padding:8px 24px;font-size:10px;color:var(--muted);min-height:33px}
+.palette .result-text{min-width:0;overflow-wrap:anywhere}
+.palette .result-snippet{display:block;font-size:11px;line-height:1.7;color:var(--muted);margin-top:7px;letter-spacing:0}
+.palette .result-kind,.palette .result-arrow{flex:none}
+.palette .search-hint{flex:none}.palette .search-results{min-height:0}
+@media(max-width:600px){.palette-backdrop{padding-top:5vh}.palette{max-height:90vh}.palette-scope{padding:10px 18px;gap:10px}.palette-scope select{font-size:10px;padding:8px 5px}.palette-search-status{padding:8px 18px;font-size:9px}.palette .search-result{gap:10px;padding:12px 10px}.palette .result-kind{font-size:8px}.palette .result-snippet{font-size:10px}.palette .search-hint{font-size:8px;padding:11px 18px}}

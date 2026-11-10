@@ -8,7 +8,7 @@ export const docGroups = ['START HERE', 'INTEGRATIONS', 'TOOLS & REFERENCE'];
 
 // Reading order. Previous/next links and the sidebar both follow it.
 export const docNav = [
-  { id: 'relay', title: 'Introduction', group: 'START HERE' },
+  { id: 'introduction', title: 'Introduction', group: 'START HERE' },
   { id: 'quickstart', title: 'Quick start', group: 'START HERE' },
   { id: 'compatibility', title: 'Compatibility', group: 'START HERE' },
   { id: 'backend', title: 'Backend API', group: 'INTEGRATIONS' },
@@ -105,6 +105,8 @@ export const docMeta = {
   },
 };
 
+docMeta.introduction = docMeta.relay;
+
 export const endpoints = [
   { method: 'GET', path: '/api/overview', detail: 'Players, uptime, backend and group counts, and the balance strategy.' },
   { method: 'GET', path: '/api/servers', detail: 'Each backend: address, group, health, latency, version, player count, and a load object with TPS, MSPT, heap and CPU.' },
@@ -120,6 +122,8 @@ export const pages = [
   { path: '/', title: 'pustka — Minecraft. From the void.', description: 'pustka — a workshop for Minecraft software. Explore our projects, read the documentation, and build with our APIs.' },
   { path: '/projects', title: 'Projects — pustka', description: 'The pustka project register: Relay, a Minecraft server proxy built in Java, and what comes next.' },
   { path: '/docs/projects', title: 'Documentation — pustka', description: 'Project documentation, versioned Markdown guides, and Java API references published from source.' },
+  { path: '/docs/relay', title: 'Relay documentation — pustka', description: 'Start with Relay, choose a documentation version, and explore guides, Java APIs and the dashboard reference.' },
+  { path: '/lab/relay', title: 'Relay Lab — pustka', description: 'Follow a sample Minecraft connection through its handshake, authentication, routing and backend forwarding.' },
   { path: '/changelog', title: 'Changelog — pustka', description: 'Every change to Relay, straight from its commit history.' },
   { path: '/help', title: 'Help — pustka', description: 'Get help with Relay: diagnose a setup, report an issue, contribute, and common questions.' },
   { path: '/tools', title: 'Workshop tools — pustka', description: 'Check a public Minecraft server, compare Relay and Paper settings, and explore the pustka project registry.' },
@@ -133,6 +137,8 @@ export const pages = [
 ];
 
 export const searchIndex = [
+  { title:'Relay Lab', detail:'Interactive / Follow a Minecraft connection',to:'/lab/relay',terms:'lab handshake packets bytes routing forwarding authentication simulation minecraft learn',kind:'tool'},
+  { title:'Relay documentation',detail:'Project home / Getting started, guides and APIs',to:'/docs/relay',terms:'relay documentation home guide java api dashboard version',kind:'doc'},
   { title: 'Project documentation', detail: 'Versioned guides and source API reference', to:'/docs/projects', terms:'documentation projects versions releases java javadoc source markdown latex math', kind:'doc' },
   { title: 'Home', detail: 'pustka / The workshop', to: '/', terms: 'home start workshop pustka', kind: 'page' },
   { title: 'Relay', detail: 'Project / Minecraft server proxy', to: '/projects', terms: 'java proxy projects register network infrastructure roadmap status phases', kind: 'project' },

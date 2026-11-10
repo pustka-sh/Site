@@ -27,6 +27,14 @@ const Releases = lazy(() => import('./pages/Releases.jsx'));
 const Live = lazy(() => import('./pages/Live.jsx'));
 const PublishedDocs = lazy(() => import('./pages/PublishedDocs.jsx'));
 const DocsProjects = lazy(() => import('./pages/PublishedDocs.jsx').then(module=>({default:module.DocsProjects})));
+const DocsHome = lazy(() => import('./pages/DocsHome.jsx'));
+const RelayLab = lazy(() => import('./pages/RelayLab.jsx'));
+
+function RelayDocumentationHome(){
+  const {hash}=useLocation();
+  const legacy=hash.startsWith('#ref-')||['#overview','#requirements','#full-reference'].includes(hash);
+  return legacy?<Navigate to={`/docs/introduction${hash}`} replace/>:<DocsHome/>;
+}
 
 function Page({ children }) {
   return (
@@ -124,9 +132,11 @@ export default function App() {
               <Route path="/tools" element={<Page><Tools /></Page>} />
               <Route path="/releases" element={<Page><Releases /></Page>} />
               <Route path="/live" element={<Page><Live /></Page>} />
+              <Route path="/lab/relay" element={<Page><RelayLab /></Page>} />
               <Route path="/c/:id" element={<Page><SharedConfig /></Page>} />
               <Route path="/docs" element={<Navigate to="/docs/projects" replace />} />
               <Route path="/docs/projects" element={<Page><DocsProjects /></Page>} />
+              <Route path="/docs/relay" element={<Page><RelayDocumentationHome /></Page>} />
               <Route path="/docs/:project/:version" element={<Page><PublishedDocs /></Page>} />
               <Route path="/docs/:project/:version/:slug" element={<Page><PublishedDocs /></Page>} />
               <Route path="/docs/api" element={<Navigate to="/api" replace />} />

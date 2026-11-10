@@ -9,6 +9,8 @@ import './styles/backend.css';
 import './styles/integrations.css';
 import 'katex/dist/katex.min.css';
 import './styles/published-docs.css';
+import './styles/relay-lab.css';
+import './styles/search.css';
 
 // Old links used hash routes (pustka.sh/#/docs/relay). Keep them working.
 if (window.location.hash.startsWith('#/')) {

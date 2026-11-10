@@ -11,6 +11,7 @@
     "sync": "node scripts/sync-relay.mjs",
     "docs:package": "node scripts/package-docs.mjs",
     "docs:publish": "node scripts/publish-docs.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
     "start": "node server/index.mjs",
     "server": "node --watch server/index.mjs",
     "test": "node --test"

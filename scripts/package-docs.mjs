@@ -7,10 +7,11 @@ import { z } from 'zod';
 import { MAX_PACKAGE_BYTES, apiArtifactSchema, isProjectId, isSourcePath, validateDocumentationPackage } from '../server/services/documentation.mjs';
 
 const projectSchema=z.object({id:z.string().refine(isProjectId),name:z.string().min(1).max(80),repository:z.string().max(200).regex(/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/)}).strict();
-const manifestSchema=z.object({
+export const documentationManifestSchema=z.object({
   schemaVersion:z.literal(1),project:projectSchema,
   guides:z.array(z.object({path:z.string().refine(isSourcePath).refine(value=>value.endsWith('.md')),slug:z.string().regex(/^[a-z0-9][a-z0-9-]{0,79}$/).refine(value=>value!=='api'),title:z.string().min(1).max(200)}).strict()).max(150),
   api:z.object({language:z.string().regex(/^[a-z][a-z0-9-]{0,29}$/),artifact:z.string().refine(isSourcePath).refine(value=>value.endsWith('.json'))}).strict(),
+  checks:z.object({examples:z.array(z.object({path:z.string().refine(isSourcePath).refine(value=>value.endsWith('.java')),guide:z.string().refine(isSourcePath).refine(value=>value.endsWith('.md')),anchor:z.string().min(1).max(200)}).strict()).max(100)}).strict().optional(),
 }).strict();
 
 function packagingError(message){return Object.assign(new Error(message),{code:'DOCS_PACKAGING_FAILED',expose:true});}
@@ -36,7 +37,7 @@ export async function packageDocumentation({manifestPath,root,apiPath,outPath,ve
   if(!(await lstat(projectRoot)).isDirectory())throw packagingError('The documentation root must be a directory.');
   const manifestFile=await containedFile(projectRoot,manifestPath);
   let manifest;
-  try{manifest=manifestSchema.parse(JSON.parse(await readBounded(manifestFile,262144)));}catch(cause){if(cause.code==='DOCS_PACKAGING_FAILED')throw cause;throw packagingError('The project documentation manifest does not match schema version 1.');}
+  try{manifest=documentationManifestSchema.parse(JSON.parse(await readBounded(manifestFile,262144)));}catch(cause){if(cause.code==='DOCS_PACKAGING_FAILED')throw cause;throw packagingError('The project documentation manifest does not match schema version 1.');}
   const artifactFile=await containedFile(projectRoot,path.join(projectRoot,...manifest.api.artifact.split('/')));
   if(apiPath&&(await containedFile(projectRoot,apiPath))!==artifactFile)throw packagingError('The API input must match the artifact declared in the manifest.');
   let api;

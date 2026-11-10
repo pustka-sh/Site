@@ -18,7 +18,7 @@ import { createDocumentationService } from './services/documentation.mjs';
 import { documentationHtml } from './documentation-html.mjs';
 
 const apiError = (status, code, message) => Object.assign(new Error(message), {status, code, expose:true});
-const feedbackPages = new Set(['/api', ...['relay','quickstart','compatibility','backend','client','packets','configuration','protocol-ids'].map(page=>`/docs/${page}`)]);
+const feedbackPages = new Set(['/api', ...['relay','introduction','quickstart','compatibility','backend','client','packets','configuration','protocol-ids'].map(page=>`/docs/${page}`)]);
 const pageSchema = z.string().max(100).refine(page=>feedbackPages.has(page));
 const reportSchema = z.object({page: pageSchema, title: z.string().trim().min(5).max(120), body: z.string().trim().min(20).max(4000), website: z.string().max(300).optional(), challenge: z.string().min(1).max(512)});
 const parse = (schema, value) => {
@@ -106,6 +106,10 @@ export async function createApplication(overrides = {}) {
   api.get('/health', (req, res) => res.json({status:'ok'}));
   api.get('/capabilities', (req, res) => res.json({backend:true,serverChecker:true,setupChecker:true,configSharing:true,feedback:true,issueReporting:issues.enabled,demo:!!config.demoUrl,docsSync:config.syncEnabled,documentation:true}));
   api.get('/docs/projects', async (req,res)=>res.json(await documentation.projects()));
+  api.get('/docs/search', async (req,res)=>{
+    const options=parse(z.object({q:z.string().trim().min(2).max(120),project:z.string().regex(/^[a-z][a-z0-9-]{0,39}$/).optional(),version:z.string().max(80).optional(),limit:z.coerce.number().int().min(1).max(30).default(20)}),req.query);
+    res.json(await documentation.search({query:options.q,project:options.project||null,version:options.version||null,limit:options.limit}));
+  });
   api.get('/docs/:project/versions', async (req,res)=>res.json(await documentation.versions(req.params.project)));
   api.get('/docs/:project/:version/pages/:slug', async (req,res)=>res.json(await documentation.page(req.params.project,req.params.version,req.params.slug)));
   api.get('/docs/:project/:version/api', async (req,res)=>res.json(await documentation.symbol(req.params.project,req.params.version,req.query.symbol)));
@@ -173,7 +177,7 @@ export async function createApplication(overrides = {}) {
     const url=(config.origin||'https://pustka.sh')+req.path.replace(/\/$/,'')+(symbol?`?symbol=${encodeURIComponent(symbol.id)}`:'');
     res.type('html').set('Cache-Control','no-cache').send(documentationHtml(shellHtml,{title,description:description.slice(0,300),url}));
   });
-  const knownPages = new Set(['/', '/projects', '/tools', '/releases', '/live', '/help', '/changelog', '/api', '/docs/projects', '/docs/relay', '/docs/quickstart', '/docs/backend', '/docs/client', '/docs/packets', '/docs/compatibility', '/docs/configuration', '/docs/protocol-ids']);
+  const knownPages = new Set(['/', '/projects', '/tools', '/releases', '/live', '/help', '/changelog', '/api', '/lab/relay', '/docs/projects', '/docs/relay', '/docs/introduction', '/docs/quickstart', '/docs/backend', '/docs/client', '/docs/packets', '/docs/compatibility', '/docs/configuration', '/docs/protocol-ids']);
   app.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     const urlPath = req.path.replace(/\/+$/, '') || '/';

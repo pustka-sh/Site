@@ -80,6 +80,7 @@ All browser requests stay on this origin:
 | Method | Endpoint | Result |
 | --- | --- | --- |
 | GET | `/api/site/docs/projects` | Registered projects and versions |
+| GET | `/api/site/docs/search?q=<query>&project=<id>&version=<version>` | Ranked guide-body and API-comment search with versioned result links; project/version are optional |
 | GET | `/api/site/docs/:project/versions` | Version list and default version |
 | GET | `/api/site/docs/:project/:version` | Guide/API index and source metadata |
 | GET | `/api/site/docs/:project/:version/pages/:slug` | Markdown and sanitized guide HTML |
