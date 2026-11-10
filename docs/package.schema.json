@@ -73,6 +73,8 @@
         "qualifiedName": {"type": "string", "maxLength": 2000},
         "owner": {"type": "string", "maxLength": 1500, "default": ""},
         "signature": {"type": "string", "maxLength": 4000},
+        "stability": {"enum": ["supported", "experimental", "internal"], "description": "Optional, author-declared integration policy. Visibility does not imply compatibility."},
+        "stabilityNote": {"type": "string", "maxLength": 1000},
         "summary": {"type": "string", "maxLength": 16384, "default": ""},
         "description": {"type": "string", "maxLength": 65536, "default": ""},
         "parameters": {"type": "array", "maxItems": 200, "items": {"$ref": "#/$defs/parameter"}, "default": []},

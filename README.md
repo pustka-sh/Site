@@ -91,6 +91,8 @@ All motion respects `prefers-reduced-motion`, and canvas effects pause in backgr
 
 ## Editing
 
+The documentation publishing additions are described in [discovery](docs/discovery.md), [API support policy](docs/api-stability.md), and [preview and comparison](docs/publishing-experience.md). Journal source lives in `src/content/journal/`; add its metadata in `src/data/journal.js`. The build renders these notes to sanitized HTML for both the initial response and the interactive reader.
+
 | What | Where |
 | --- | --- |
 | Page titles, docs navigation, API endpoints, FAQ, search index | `src/data/site.js` |

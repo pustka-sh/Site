@@ -5,7 +5,7 @@ import { searchIndex, docNav } from '../data/site.js';
 import { loadDocProjects } from '../lib/publishedDocs.js';
 import { useDocumentationSearch } from '../lib/docsSearch.js';
 
-const kindLabel = { page: 'PAGE', project: 'PROJECT', doc: 'DOC', section: 'SECTION', endpoint: 'ROUTE', external: 'LINK', tool: 'TOOL', reference: 'REF', faq: 'FAQ', guide:'GUIDE',symbol:'API' };
+const kindLabel = { page: 'PAGE', project: 'PROJECT', doc: 'DOC', section: 'SECTION', endpoint: 'ROUTE', external: 'LINK', tool: 'TOOL', reference: 'REF', faq: 'FAQ', guide:'GUIDE',symbol:'API',journal:'NOTE' };
 
 // Headings from the synced upstream docs, loaded the first time the palette opens.
 const upstreamRoutes = { relay: '/docs/introduction', quickstart: '/docs/quickstart', api: '/api' };
@@ -30,6 +30,8 @@ async function loadUpstream() {
     add(doc, upstreamRoutes[key], t);
     addText(doc, upstreamRoutes[key], t);
   });
+  const {default:journal}=await import('../content/journal.generated.json');
+  entries.push(...journal.map(entry=>({title:`${entry.title} — full text`,detail:'Workshop journal',to:`/journal/${entry.slug}`,terms:entry.markdown,kind:'journal',fulltext:true})));
   upstreamIndex = entries;
   return entries;
 }

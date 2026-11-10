@@ -7,6 +7,7 @@ import katex from 'katex';
 import sanitizeHtml from 'sanitize-html';
 import { z } from 'zod';
 import { buildDocumentationSearchIndex, searchDocumentationIndex } from './documentation-search.mjs';
+import {compareDocumentationPackages} from './documentation-diff.mjs';
 
 export const MAX_PACKAGE_BYTES = 8 * 1024 * 1024;
 export const isProjectId = value => typeof value === 'string' && /^[a-z][a-z0-9-]{0,39}$/.test(value);
@@ -27,6 +28,7 @@ const symbolSchema = z.object({
   summary:optionalText(16384),description:optionalText(65536),parameters:z.array(describe).max(200).default([]),
   returns:returnSchema.nullable().default(null),throws:z.array(throwsSchema).max(100).default([]),
   since:optionalText(2000),deprecated:z.boolean().default(false),deprecation:optionalText(16384),
+  stability:z.enum(['supported','experimental','internal']).optional(),stabilityNote:text(1000).optional(),
   source:z.object({path:sourcePath,line:z.number().int().min(1).max(10000000)}).strict(),
 }).strict();
 export const apiArtifactSchema = z.object({schemaVersion:z.literal(1),language:z.string().regex(/^[a-z][a-z0-9-]{0,29}$/),generator:text(100).min(1),symbols:z.array(symbolSchema).max(12000)}).strict();
@@ -227,6 +229,21 @@ export function createDocumentationService({dataDir,projects,keys={},now=Date.no
     if(html.length<524288){if(rendered.size>=64)rendered.delete(rendered.keys().next().value);rendered.set(cacheKey,html);}
     return html;
   }
+  function manifestOf(record){
+    const data=record.package;
+    return {schemaVersion:1,project:data.project,version:data.version,source:data.source,generatedAt:data.generatedAt,publishedAt:record.publishedAt,pages:data.pages.map(({markdown,...page})=>page),api:{language:data.api.language,generator:data.api.generator,symbols:data.api.symbols.map(({id,kind,name,qualifiedName,owner,signature,summary,deprecated,stability,stabilityNote})=>({id,kind,name,qualifiedName,owner,signature,summary,deprecated,...(stability?{stability}:{}),...(stabilityNote?{stabilityNote}:{})}))}};
+  }
+  function pageOf(record,slug){
+    const page=record.package.pages.find(item=>item.slug===slug);
+    if(!page)throw error(404,'DOCS_PAGE_NOT_FOUND','This documentation page does not exist.');
+    return {page:{...page,html:renderCached(record,`page/${slug}`,page.markdown,page.sourcePath)},project:record.package.project,version:record.package.version,source:record.package.source};
+  }
+  function symbolOf(record,symbolId){
+    const symbol=record.package.api.symbols.find(item=>item.id===symbolId);
+    if(!symbol)throw error(404,'DOCS_SYMBOL_NOT_FOUND','This API symbol does not exist in this version.');
+    const render=(label,markdown)=>renderCached(record,`api/${symbolId}/${label}`,markdown,symbol.source.path);
+    return {symbol:{...symbol,summaryHtml:render('summary',symbol.summary),descriptionHtml:render('description',symbol.description),deprecationHtml:render('deprecation',symbol.deprecation),parameters:symbol.parameters.map((value,i)=>({...value,descriptionHtml:render(`parameter-${i}`,value.description)})),returns:symbol.returns?{...symbol.returns,descriptionHtml:render('returns',symbol.returns.description)}:null,throws:symbol.throws.map((value,i)=>({...value,descriptionHtml:render(`throws-${i}`,value.description)}))},project:record.package.project,version:record.package.version,source:record.package.source};
+  }
   async function publish(rawBody,{project:id,timestamp,signature}={}){
     findProject(id);const key=Object.hasOwn(keys,id)?keys[id]:undefined;if(!key)throw error(503,'DOCS_PUBLISH_DISABLED','Publishing is not configured for this project.');
     if(!Buffer.isBuffer(rawBody)||rawBody.length>MAX_PACKAGE_BYTES)throw error(413,'DOCS_PACKAGE_TOO_LARGE','The documentation package exceeds 8 MiB.');
@@ -270,9 +287,15 @@ export function createDocumentationService({dataDir,projects,keys={},now=Date.no
     },
     async projects(){const result=[];for(const project of registry.values()){const {versions,defaultVersion}=await versionIndex(project.id);result.push({...project,versions,defaultVersion});}return {projects:result};},
     versions:versionIndex,
-    async manifest(id,version){const record=await readRecord(id,version),data=record.package;return {schemaVersion:1,project:data.project,version:data.version,source:data.source,generatedAt:data.generatedAt,publishedAt:record.publishedAt,pages:data.pages.map(({markdown,...page})=>page),api:{language:data.api.language,generator:data.api.generator,symbols:data.api.symbols.map(({id,kind,name,qualifiedName,owner,signature,summary,deprecated})=>({id,kind,name,qualifiedName,owner,signature,summary,deprecated}))}};},
-    async page(id,version,slug){const record=await readRecord(id,version),page=record.package.pages.find(item=>item.slug===slug);if(!page)throw error(404,'DOCS_PAGE_NOT_FOUND','This documentation page does not exist.');return {page:{...page,html:renderCached(record,`page/${slug}`,page.markdown,page.sourcePath)},project:record.package.project,version,source:record.package.source};},
-    async symbol(id,version,symbolId){const record=await readRecord(id,version),symbol=record.package.api.symbols.find(item=>item.id===symbolId);if(!symbol)throw error(404,'DOCS_SYMBOL_NOT_FOUND','This API symbol does not exist in this version.');const render=(label,markdown)=>renderCached(record,`api/${symbolId}/${label}`,markdown,symbol.source.path);return {symbol:{...symbol,summaryHtml:render('summary',symbol.summary),descriptionHtml:render('description',symbol.description),deprecationHtml:render('deprecation',symbol.deprecation),parameters:symbol.parameters.map((value,i)=>({...value,descriptionHtml:render(`parameter-${i}`,value.description)})),returns:symbol.returns?{...symbol.returns,descriptionHtml:render('returns',symbol.returns.description)}:null,throws:symbol.throws.map((value,i)=>({...value,descriptionHtml:render(`throws-${i}`,value.description)}))},project:record.package.project,version,source:record.package.source};},
+    async manifest(id,version){return manifestOf(await readRecord(id,version));},
+    async document(id,version,{slug=null,symbolId=null}={}){
+      // Every part of the initial response must describe the same frozen record.
+      const record=await readRecord(id,version);
+      return {manifest:manifestOf(record),page:slug&&slug!=='api'?pageOf(record,slug).page:null,symbol:slug==='api'&&symbolId?symbolOf(record,symbolId).symbol:null};
+    },
+    async compare(id,fromVersion,toVersion){const before=await readRecord(id,fromVersion),after=fromVersion===toVersion?before:await readRecord(id,toVersion);return compareDocumentationPackages(before.package,after.package);},
+    async page(id,version,slug){return pageOf(await readRecord(id,version),slug);},
+    async symbol(id,version,symbolId){return symbolOf(await readRecord(id,version),symbolId);},
     publish,
   };
 }

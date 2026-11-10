@@ -15,7 +15,9 @@ import { createGithubService } from './services/github.mjs';
 import { createContentService, verifyWebhook } from './services/content-sync.mjs';
 import { createDemoService } from './services/demo.mjs';
 import { createDocumentationService } from './services/documentation.mjs';
-import { documentationHtml } from './documentation-html.mjs';
+import { documentationHtml, renderPublishedDocumentation } from './documentation-html.mjs';
+import {documentationSitemapIndex,documentationVersionSitemap} from './documentation-sitemap.mjs';
+import {pages} from '../src/data/site.js';
 
 const apiError = (status, code, message) => Object.assign(new Error(message), {status, code, expose:true});
 const feedbackPages = new Set(['/api', ...['relay','introduction','quickstart','compatibility','backend','client','packets','configuration','protocol-ids'].map(page=>`/docs/${page}`)]);
@@ -111,6 +113,7 @@ export async function createApplication(overrides = {}) {
     res.json(await documentation.search({query:options.q,project:options.project||null,version:options.version||null,limit:options.limit}));
   });
   api.get('/docs/:project/versions', async (req,res)=>res.json(await documentation.versions(req.params.project)));
+  api.get('/docs/:project/compare', async (req,res)=>{const query=parse(z.object({from:z.string().min(1).max(80),to:z.string().min(1).max(80)}).strict(),req.query);res.json(await documentation.compare(req.params.project,query.from,query.to));});
   api.get('/docs/:project/:version/pages/:slug', async (req,res)=>res.json(await documentation.page(req.params.project,req.params.version,req.params.slug)));
   api.get('/docs/:project/:version/api', async (req,res)=>res.json(await documentation.symbol(req.params.project,req.params.version,req.query.symbol)));
   api.get('/docs/:project/:version', async (req,res)=>res.json(await documentation.manifest(req.params.project,req.params.version)));
@@ -158,26 +161,23 @@ export async function createApplication(overrides = {}) {
   app.get('/feed.xml', async (req, res) => res.type('application/rss+xml').send(await content.rss({origin:config.origin || 'https://pustka.sh'})));
   app.get(['/docs','/docs/'], (req,res)=>res.redirect(308,'/docs/projects'));
   app.get(['/docs/api','/docs/api/'], (req,res)=>res.redirect(308,'/api'));
+  app.get('/sitemap.xml',async(req,res)=>res.type('application/xml').set('Cache-Control','public, max-age=300').send(await documentationSitemapIndex({documentation,origin:config.origin||'https://pustka.sh',staticPages:pages})));
+  app.get('/sitemaps/site.xml',(req,res)=>res.type('application/xml').sendFile(path.join(config.distDir,'sitemap.xml'),{dotfiles:'allow'}));
+  app.get('/sitemaps/docs/:project/:version.xml',async(req,res)=>res.type('application/xml').set('Cache-Control','public, max-age=300').send(await documentationVersionSitemap({documentation,origin:config.origin||'https://pustka.sh',project:req.params.project,version:req.params.version})));
   app.use(express.static(config.distDir, {index:false, redirect:false, dotfiles:'deny', maxAge:0, setHeaders(res, file) {
     if (path.basename(path.dirname(file)) === 'assets') res.set('Cache-Control', 'public, max-age=31536000, immutable');
   }}));
   app.get(/^\/c\/[A-Za-z0-9_-]{16}\/?$/, (req, res) => {res.set({'X-Robots-Tag':'noindex, nofollow','Cache-Control':'no-store'}).sendFile(path.join(config.distDir,'index.html'),{dotfiles:'allow'});});
+  app.get(/^\/docs\/[a-z][a-z0-9-]{0,39}\/compare\/?$/,async(req,res,next)=>{const project=req.path.split('/')[2];try{await documentation.versions(project);}catch(error){if(error.status===404)return next();throw error;}res.type('html').set('Cache-Control','no-cache').send(documentationHtml(shellHtml,{title:`Compare ${project} documentation — pustka`,description:'Review API declarations and guide changes between published documentation snapshots.',url:`${config.origin||'https://pustka.sh'}/docs/${project}/compare`}));});
   app.get(/^\/docs\/[a-z0-9][a-z0-9-]{0,39}\/(?:main|v?\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?)(?:\/[a-z0-9][a-z0-9-]{0,79})?\/?$/, async (req,res,next)=>{
     const [,,project,version,slug] = req.path.replace(/\/$/,'').split('/');
-    let manifest;
-    try {manifest=await documentation.manifest(project,version);}
-    catch(error){if(error.status!==404)return next(error);return res.status(404).set('X-Robots-Tag','noindex').type('html').send(shellHtml);}
-    const page=slug&&slug!=='api'?manifest.pages.find(page=>page.slug===slug):null;
     const symbolId=slug==='api'&&typeof req.query.symbol==='string'?req.query.symbol:null;
-    const symbol=symbolId?manifest.api.symbols.find(symbol=>symbol.id===symbolId):null;
-    if((slug&&slug!=='api'&&!page)||(symbolId&&!symbol))return res.status(404).set('X-Robots-Tag','noindex').type('html').send(shellHtml);
-    const label=symbol?.qualifiedName||page?.title||(slug==='api'?'API reference':'Documentation');
-    const title=`${label} · ${manifest.project.name} ${version} — pustka`;
-    const description=symbol?.summary||`${label} for ${manifest.project.name} ${version}, published from source commit ${manifest.source.commit.slice(0,7)}.`;
-    const url=(config.origin||'https://pustka.sh')+req.path.replace(/\/$/,'')+(symbol?`?symbol=${encodeURIComponent(symbol.id)}`:'');
-    res.type('html').set('Cache-Control','no-cache').send(documentationHtml(shellHtml,{title,description:description.slice(0,300),url}));
+    let snapshot;
+    try {snapshot=await documentation.document(project,version,{slug,symbolId});}
+    catch(error){if(error.status!==404)return next(error);return res.status(404).set('X-Robots-Tag','noindex').type('html').send(shellHtml);}
+    res.type('html').set('Cache-Control','no-cache').send(renderPublishedDocumentation(shellHtml,{...snapshot,origin:config.origin||'https://pustka.sh',pathname:req.path.replace(/\/$/,''),symbolId}));
   });
-  const knownPages = new Set(['/', '/projects', '/tools', '/releases', '/live', '/help', '/changelog', '/api', '/lab/relay', '/docs/projects', '/docs/relay', '/docs/introduction', '/docs/quickstart', '/docs/backend', '/docs/client', '/docs/packets', '/docs/compatibility', '/docs/configuration', '/docs/protocol-ids']);
+  const knownPages = new Set(pages.map(page=>page.path));
   app.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     const urlPath = req.path.replace(/\/+$/, '') || '/';

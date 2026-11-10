@@ -9,9 +9,12 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pages, SITE } from '../src/data/site.js';
+import {documentationHtml} from '../server/documentation-html.mjs';
+import {journalHtmlBody} from '../server/journal-html.mjs';
 
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const template = readFileSync(join(dist, 'index.html'), 'utf8');
+const journal=JSON.parse(readFileSync(new URL('../src/content/journal.generated.json',import.meta.url),'utf8'));
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 function render({ path, title, description }, extraHead = '') {
@@ -29,7 +32,8 @@ function render({ path, title, description }, extraHead = '') {
 for (const page of pages) {
   const file = page.path === '/' ? join(dist, 'index.html') : join(dist, page.path.slice(1), 'index.html');
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, render(page));
+  const html=render(page);
+  writeFileSync(file,page.path==='/journal'||page.path.startsWith('/journal/')?documentationHtml(html,{title:page.title,description:page.description,url:SITE+page.path,body:journalHtmlBody(journal,page.path.split('/')[2]||null)}):html);
 }
 
 writeFileSync(
@@ -41,7 +45,7 @@ const today = new Date().toISOString().slice(0, 10);
 writeFileSync(
   join(dist, 'sitemap.xml'),
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages
-    .map((p) => `  <url><loc>${SITE}${p.path === '/' ? '/' : p.path}</loc><lastmod>${today}</lastmod></url>`)
+    .map((p) => `  <url><loc>${SITE}${p.path === '/' ? '/' : p.path}</loc><lastmod>${p.lastmod||today}</lastmod></url>`)
     .join('\n')}\n</urlset>\n`,
 );
 

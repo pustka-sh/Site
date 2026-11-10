@@ -72,3 +72,19 @@ test('invalid metadata and oversized or malformed input preserve an already buil
   assert.equal(await readFile(options.outPath,'utf8'),previous);
   await writeFile(options.apiPath,JSON.stringify({...api,language:'python'}));await assert.rejects(()=>packageDocumentation(options),/language must match/);
 });
+
+test('packaging applies only an authored stability policy and rejects a rule that does not name an extracted type',async t=>{
+  const options=await setup(t);
+  const legacy=await packageDocumentation(options);
+  assert.ok(!Object.hasOwn(legacy.api.symbols[0],'stability'));
+  options.manifest.api.stability={default:'internal',rules:[{type:'example.Router',level:'supported',note:'Documented routing wire constants only; no Java ABI promise.'}]};
+  await writeFile(options.manifestPath,JSON.stringify(options.manifest));
+  const result=await packageDocumentation(options);
+  assert.equal(result.api.symbols[0].stability,'supported');
+  assert.equal(result.api.symbols[0].stabilityNote,options.manifest.api.stability.rules[0].note);
+  const published=await readFile(options.outPath,'utf8');
+  options.manifest.api.stability.rules[0].type='example.RouteR';
+  await writeFile(options.manifestPath,JSON.stringify(options.manifest));
+  await assert.rejects(()=>packageDocumentation(options),/absent from this artifact/);
+  assert.equal(await readFile(options.outPath,'utf8'),published);
+});

@@ -21,6 +21,7 @@ export default function Footer() {
             <Link to="/lab/relay">Relay Lab</Link>
             <Link to="/docs/configuration">Config builder</Link>
             <Link to="/changelog">Changelog</Link>
+            <Link to="/journal">Workshop journal</Link>
             <Link to="/help">Help</Link>
             <Link to="/tools">Workshop tools</Link>
             <Link to="/releases">Releases</Link>

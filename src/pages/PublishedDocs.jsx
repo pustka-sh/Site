@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import DocsProjectSwitcher from '../components/DocsProjectSwitcher.jsx';
 import { MarkdownActions, ReaderOutline, usePublishedProse, useReaderOutline } from '../components/PublishedReaderTools.jsx';
 import { useDocumentationSearch } from '../lib/docsSearch.js';
+import {ApiStabilityBadge,ApiStabilityLegend,ApiStabilityNote,stabilityLevels,stabilityOf} from '../components/ApiStability.jsx';
 import { apiLink, docBase, docsDate, isType, repositoryUrl, sourceUrl, useDocProjects, usePublishedResource } from '../lib/publishedDocs.js';
 
 const kindLabel = kind => String(kind || 'symbol').replaceAll('-', ' ');
@@ -65,12 +66,18 @@ function ApiIndex({manifest}) {
   const incomingQuery=new URLSearchParams(location.search).get('q') || '';
   const [query,setQuery]=useState(incomingQuery);
   const [limit,setLimit]=useState(60);
+  const [policy,setPolicy]=useState('all');
   useEffect(()=>{setQuery(incomingQuery);setLimit(60);},[incomingQuery]);
   const navigate=useNavigate();
   const symbols=manifest.api?.symbols || [];
-  const filtered=useMemo(()=>symbols.filter(symbol=>symbolSearch(symbol,query)),[symbols,query]);
+  const filtered=useMemo(()=>symbols.filter(symbol=>symbolSearch(symbol,query)&&(policy==='all'||stabilityOf(symbol)===policy)),[symbols,query,policy]);
   const results=query.trim()?filtered:filtered.filter(isType);
-  return <><h1>The source, explained.</h1><p className="lead">{manifest.project.name} / {manifest.api?.language || 'Source'} API reference</p><Revision manifest={manifest}/><form className="published-search" role="search" onSubmit={event=>{event.preventDefault();if(results[0])navigate(apiLink(manifest.project.id,manifest.version,results[0].id));}}><label htmlFor="published-api-search">Find a type or member</label><div><input id="published-api-search" type="search" value={query} onChange={event=>{setQuery(event.target.value);setLimit(60);}} placeholder="Class, method, or signature…" autoComplete="off" spellCheck="false"/><button type="submit">Open first result →</button></div></form><p className="published-search-count" role="status">{results.length} {query.trim()?'matching symbols':'types'}{!query.trim()?' · Search to include methods and fields':''}</p><div className="published-symbol-list">{results.slice(0,limit).map(symbol=><Link key={symbol.id} to={apiLink(manifest.project.id,manifest.version,symbol.id)}><span className="published-kind">{kindLabel(symbol.kind)}</span><span><strong>{symbol.qualifiedName || symbol.name}</strong><code>{symbol.signature}</code>{symbol.summary&&<small>{symbol.summary}</small>}</span>{symbol.deprecated&&<span className="published-deprecated">Deprecated</span>}<span aria-hidden="true">→</span></Link>)}</div>{!results.length&&<p className="published-empty-search">{symbols.length?'No symbols match that search.':'This package does not contain an API reference.'}</p>}{results.length>limit&&<button className="published-load-more" type="button" onClick={()=>setLimit(value=>value+60)}>Show more results ({results.length-limit} remaining)</button>}</>;
+  return <><h1>The source, explained.</h1><p className="lead">{manifest.project.name} / {manifest.api?.language || 'Source'} API reference</p><Revision manifest={manifest}/><ApiStabilityLegend/>
+    <form className="published-search" role="search" onSubmit={event=>{event.preventDefault();if(results[0])navigate(apiLink(manifest.project.id,manifest.version,results[0].id));}}><label htmlFor="published-api-search">Find a type or member</label><div><input id="published-api-search" type="search" value={query} onChange={event=>{setQuery(event.target.value);setLimit(60);}} placeholder="Class, method, or signature…" autoComplete="off" spellCheck="false"/><button type="submit">Open first result →</button></div></form>
+    <label className="api-stability-filter">API support policy<select value={policy} onChange={event=>{setPolicy(event.target.value);setLimit(60);}}><option value="all">All labels</option>{stabilityLevels.map(level=><option value={level} key={level}>{level[0].toUpperCase()+level.slice(1)}</option>)}</select></label>
+    <p className="published-search-count" role="status">{results.length} {query.trim()?'matching symbols':'types'}{!query.trim()?' · Search to include methods and fields':''}</p>
+    <div className="published-symbol-list">{results.slice(0,limit).map(symbol=><Link key={symbol.id} to={apiLink(manifest.project.id,manifest.version,symbol.id)}><span className="published-kind">{kindLabel(symbol.kind)}</span><span><strong>{symbol.qualifiedName || symbol.name}</strong><code>{symbol.signature}</code>{symbol.summary&&<small>{symbol.summary}</small>}<ApiStabilityBadge symbol={symbol}/></span>{symbol.deprecated&&<span className="published-deprecated">Deprecated</span>}<span aria-hidden="true">→</span></Link>)}</div>
+    {!results.length&&<p className="published-empty-search">{symbols.length?'No symbols match that search and support policy.':'This package does not contain an API reference.'}</p>}{results.length>limit&&<button className="published-load-more" type="button" onClick={()=>setLimit(value=>value+60)}>Show more results ({results.length-limit} remaining)</button>}</>;
 }
 
 function ApiSymbol({manifest, id}) {
@@ -84,6 +91,7 @@ function ApiSymbol({manifest, id}) {
   if(!symbol)return null;
   const htmlProps={project,version};
   return <><p className="published-symbol-kind">{kindLabel(symbol.kind)}{symbol.deprecated&&<span className="published-deprecated">Deprecated</span>}</p><h1 className="published-symbol-title">{symbol.name}</h1><p className="published-qualified-name">{symbol.qualifiedName}</p>{owner&&<Link className="published-owner" to={apiLink(project,version,owner.id)}>In {owner.qualifiedName || owner.name} →</Link>}<Revision manifest={manifest} source={symbol.source}/><pre className="published-signature"><code>{symbol.signature}</code></pre>
+    <ApiStabilityNote symbol={symbol}/>
     {symbol.deprecated&&<aside className="published-deprecation"><strong>Deprecated API</strong><PublishedHtml html={symbol.deprecationHtml} fallback={symbol.deprecation || 'This symbol is marked deprecated in its source.'} {...htmlProps}/></aside>}
     {symbol.description||symbol.summary ? <PublishedHtml html={symbol.descriptionHtml || symbol.summaryHtml} fallback={symbol.description || symbol.summary} {...htmlProps}/> : <p className="published-undocumented">No description has been written for this symbol in the source yet. Its signature and location are still available.</p>}
     {!!symbol.parameters?.length&&<><h2 id="api-parameters">Parameters</h2><div className="table-wrap"><table className="reference-table published-parameter-table"><thead><tr><th>Name / type</th><th>Description</th></tr></thead><tbody>{symbol.parameters.map((parameter,index)=><tr key={`${parameter.name}-${index}`}><td><code>{parameter.name}</code><small>{parameter.type}</small></td><td><PublishedHtml html={parameter.descriptionHtml} fallback={parameter.description || 'Not documented in the source.'} {...htmlProps}/></td></tr>)}</tbody></table></div></>}
@@ -153,6 +161,7 @@ export default function PublishedDocs() {
       <p className="sidebar-label">SOURCE REFERENCE</p><Link className={slug==='api'?'active':''} aria-current={slug==='api'?'page':undefined} to={apiLink(project,version)}>Java API <span>{manifest.api?.symbols?.length || 0}</span></Link>
       {project==='relay'&&<><p className="sidebar-label">RELAY WORKSHOP</p><Link to="/docs/relay">Documentation home</Link><Link to="/docs/quickstart">Current setup guide</Link><Link to="/api">Dashboard HTTP API</Link><Link to="/lab/relay">Relay Lab</Link></>}
       <Link to="/docs/projects">All project documentation ↗</Link>
+      <Link to={`/docs/${project}/compare`}>Compare published versions →</Link>
     </aside>
     <ReaderOutline {...outline}/>
     <article ref={articleRef} className="docs-content published-docs-content">

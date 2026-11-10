@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { siteApi } from './siteApi.js';
+import { consumeDocumentationBootstrap, readDocumentationBootstrap } from './documentBootstrap.js';
 
 export const docBase = (project, version) => `/docs/${encodeURIComponent(project)}/${encodeURIComponent(version)}`;
 export const apiLink = (project, version, symbol) => `${docBase(project, version)}/api${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ''}`;
@@ -53,9 +54,19 @@ export function useDocProjects() {
 }
 
 export function usePublishedResource(path) {
-  const [state, setState] = useState({path,loading:true,data:null,error:null});
+  const [state, setState] = useState(() => {
+    const data = readDocumentationBootstrap(path);
+    return {path,loading:!data,data:data || null,error:null};
+  });
+  const initialBootstrapPath = useRef(state.data ? path : null);
   useEffect(() => {
-    if (!path) {setState({path,loading:false,data:null,error:null});return undefined;}
+    if (!path) {initialBootstrapPath.current=null;setState({path,loading:false,data:null,error:null});return undefined;}
+    // StrictMode may replay the effect. Both passes keep the initial content.
+    if (initialBootstrapPath.current === path) {
+      consumeDocumentationBootstrap(path);
+      return undefined;
+    }
+    initialBootstrapPath.current = null;
     let active = true;
     const controller = new AbortController();
     setState({path,loading:true,data:null,error:null});

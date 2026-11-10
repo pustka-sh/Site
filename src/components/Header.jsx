@@ -10,6 +10,7 @@ const links = [
   { to: '/lab/relay', label: 'Lab', match: '/lab' },
   { to: '/api', label: 'Dashboard API', match: '/api', extra: true },
   { to: '/changelog', label: 'Changelog', match: '/changelog', extra: true },
+  { to: '/journal', label: 'Journal', match: '/journal', extra: true },
   { to: '/help', label: 'Help', match: '/help', extra: true },
   { to: '/tools', label: 'Workshop tools', match: '/tools', extra: true },
   { to: '/releases', label: 'Releases', match: '/releases', extra: true },
