@@ -99,10 +99,20 @@ jobs:
         run: |
           docker tag pustka-site:ci "$IMAGE:sha-$GITHUB_SHA"
           docker tag pustka-site:ci "$IMAGE:latest"
-          docker push "$IMAGE:sha-$GITHUB_SHA"
-          docker push "$IMAGE:latest"
-          reference="$(docker image inspect "$IMAGE:sha-$GITHUB_SHA" --format '{{index .RepoDigests 0}}')"
-          [[ "$reference" =~ ^ghcr\.io/pustka-sh/site@sha256:[a-f0-9]{64}$ ]]
+          push_image() {
+            if ! docker push "$1"; then
+              printf '::notice::Image push failed; retrying the same image once.\n'
+              sleep 5
+              docker push "$1"
+            fi
+          }
+          push_image "$IMAGE:sha-$GITHUB_SHA"
+          push_image "$IMAGE:latest"
+          digest="$(docker buildx imagetools inspect "$IMAGE:sha-$GITHUB_SHA" --format '{{.Manifest.Digest}}')"
+          latest_digest="$(docker buildx imagetools inspect "$IMAGE:latest" --format '{{.Manifest.Digest}}')"
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          test "$digest" = "$latest_digest"
+          reference="$IMAGE@$digest"
           {
             printf '### Published website image\n\n'
             printf -- '- Latest: `%s:latest`\n' "$IMAGE"
