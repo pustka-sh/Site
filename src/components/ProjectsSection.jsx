@@ -17,7 +17,7 @@ function ProjectRegister() {
   return (
     <Reveal>
       <article className="project-register">
-        <div className="project-number">/01</div>
+        <div className="project-number">/02</div>
         <div className="project-copy">
           <p className="micro"><span className="live-dot" aria-hidden="true" /> NETWORK INFRASTRUCTURE · IN THE OPEN</p>
           <h3>Relay<span style={{ color: 'var(--red)' }}>.</span></h3>
@@ -55,6 +55,29 @@ export function ProjectsSection({ showHeading = true }) {
           <External href={ORG} className="text-link">All repositories ↗</External>
         </div>
       )}
+      <Reveal>
+        <article className="project-register quench-register">
+          <div className="project-number">/01</div>
+          <div className="project-copy">
+            <p className="micro">MINECRAFT MOD LOADER · IN DEVELOPMENT</p>
+            <h3>Quench<span style={{ color: 'var(--red)' }}>.</span></h3>
+            <p>A performance-focused mod loader built to push Minecraft further. Less overhead is the goal. Measurement is how we get there.</p>
+            <dl className="project-meta">
+              <div><dt>Focus</dt><dd>Minecraft performance</dd></div>
+              <div><dt>Status</dt><dd>In development</dd></div>
+            </dl>
+            <div className="project-links">
+              <Link to="/projects/quench" className="arrow-link">Meet Quench <span>→</span></Link>
+              <Link to="/projects/quench#performance" className="arrow-link">Performance notes <span>→</span></Link>
+            </div>
+          </div>
+          <aside className="quench-note">
+            <p className="section-label">THE DIRECTION</p>
+            <h4>Push further.<br />Measure everything.</h4>
+            <p>Early testing suggests improvements over Fabric. Explore the findings and what still needs validation.</p>
+          </aside>
+        </article>
+      </Reveal>
       <ProjectRegister />
       <p className="register-note">
         <span aria-hidden="true">∅</span>

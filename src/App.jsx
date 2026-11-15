@@ -17,6 +17,7 @@ import { pages } from './data/site.js';
 import { SharedConfig } from './components/ConfigBuilder.jsx';
 
 // Everything but the home page loads on demand, so the first visit downloads less.
+const Quench = lazy(() => import('./pages/Quench.jsx'));
 const Projects = lazy(() => import('./pages/Projects.jsx'));
 const Docs = lazy(() => import('./pages/Docs.jsx'));
 const Changelog = lazy(() => import('./pages/Changelog.jsx'));
@@ -128,6 +129,7 @@ export default function App() {
           <AnimatePresence mode="wait" initial={false}>
             <Routes location={location} key={location.pathname}>
               <Route path="/" element={<Page><Home /></Page>} />
+              <Route path="/projects/quench" element={<Page><Quench /></Page>} />
               <Route path="/projects" element={<Page><Projects /></Page>} />
               <Route path="/changelog" element={<Page><Changelog /></Page>} />
               <Route path="/journal" element={<Page><Journal /></Page>} />

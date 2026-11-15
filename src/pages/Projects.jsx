@@ -50,8 +50,8 @@ export default function Projects() {
     <div className="container projects-page">
       <header className="page-intro">
         <p className="section-label">THE PROJECT REGISTER</p>
-        <WordReveal as="h1" text="Built here. Open to everyone." />
-        <Reveal as="p" delay={0.2}>A workshop for Minecraft mods, loaders, proxies, and tools. Start with the software taking shape in the open.</Reveal>
+        <WordReveal as="h1" text="Built here. Taking shape." />
+        <Reveal as="p" delay={0.2}>A workshop for Minecraft mods, loaders, proxies, and tools. Explore Quench, Relay, and the work behind them.</Reveal>
       </header>
       <ProjectsSection showHeading={false} />
       <Roadmap />
