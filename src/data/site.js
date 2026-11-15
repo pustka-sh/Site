@@ -120,10 +120,11 @@ export const endpoints = [
 
 // Every route that gets its own HTML file at build time (titles, descriptions, sitemap).
 export const pages = [
+  { path: '/projects/quench', title: 'Quench — pustka', description: 'A performance-focused Minecraft mod loader by pustka. Explore the project, early performance findings, and development status.' },
   {path:'/journal',title:'Workshop journal — pustka',description:'Engineering notes on Minecraft protocols, project decisions, and the tools behind pustka.'},
   ...journal.map(entry=>({path:`/journal/${entry.slug}`,title:`${entry.title} — pustka journal`,description:entry.description,lastmod:entry.published})),
   { path: '/', title: 'pustka — Minecraft. From the void.', description: 'pustka — a workshop for Minecraft software. Explore our projects, read the documentation, and build with our APIs.' },
-  { path: '/projects', title: 'Projects — pustka', description: 'The pustka project register: Relay, a Minecraft server proxy built in Java, and what comes next.' },
+  { path: '/projects', title: 'Projects — pustka', description: 'The pustka project register: Quench, a performance-focused Minecraft mod loader, and Relay, a Minecraft server proxy.' },
   { path: '/docs/projects', title: 'Documentation — pustka', description: 'Project documentation, versioned Markdown guides, and Java API references published from source.' },
   { path: '/docs/relay', title: 'Relay documentation — pustka', description: 'Start with Relay, choose a documentation version, and explore guides, Java APIs and the dashboard reference.' },
   { path: '/lab/relay', title: 'Relay Lab — pustka', description: 'Follow a sample Minecraft connection through its handshake, authentication, routing and backend forwarding.' },
@@ -140,6 +141,7 @@ export const pages = [
 ];
 
 export const searchIndex = [
+  { title: 'Quench', detail: 'Project / Performance-focused Minecraft mod loader', to: '/projects/quench', terms: 'quench minecraft loader performance fabric benchmarks optimization compatibility', kind: 'project' },
   {title:'Workshop journal',detail:'Engineering notes / Inside the projects',to:'/journal',terms:'journal writing notes decisions engineering protocols workshop',kind:'page'},
   ...journal.map(entry=>({title:entry.title,detail:`Journal / ${entry.category.toLowerCase()}`,to:`/journal/${entry.slug}`,terms:entry.description,kind:'journal'})),
   {title:'Compare Relay documentation',detail:'Review changes between published snapshots',to:'/docs/relay/compare',terms:'api diff compare migration upgrade versions signatures stability',kind:'page'},
